@@ -70,13 +70,12 @@
     
     <script>
         // --- GLOBAL CONSTANTS & CONFIGURATION ---
-        // **IMPORTANT: Replace with your actual Gemini API Key**
-        const apiKey = "YOUR_GEMINI_API_KEY_HERE"; 
+        // GEMINI API KEY IS NO LONGER USED, BUT KEPT AS A COMMENT IF AI IS EVER REINTRODUCED
+        // const apiKey = "YOUR_GEMINI_API_KEY_HERE"; 
         
-        const GEMINI_MODEL = "gemini-2.5-flash"; 
         const FEE_AMOUNT_LKR = '1200';
-        const INSTITUTE_NAME = 'Nena Piyasa Higher Education Institute';
-        const DEFAULT_SENDER_PHONE = '0750882164';
+        const INSTITUTE_NAME_SINHALA = 'නැණ පියස උසස් අධයාපන ආයතනය';
+        const SENDER_PHONE = '0750882164';
         const CURRENT_YEAR = new Date().getFullYear();
 
         // --- INDEXEDDB CONFIG ---
@@ -100,10 +99,12 @@
         };
         const MONTHS_OF_YEAR = getCurrentYearMonths(CURRENT_YEAR);
 
-        /** Creates the default reminder message. */
+        /** Creates the fixed reminder message with placeholders. */
         const createDefaultMessage = () => {
-            const month = new Date().toLocaleString('en-US', { month: 'long' });
-            return `Hi [Student Name], this is a reminder that your fee of LKR ${FEE_AMOUNT_LKR} for ${month} is pending. Please clear it as soon as possible. Regards - [${INSTITUTE_NAME}]`;
+            return `Dear (STUDENT NAME), this is to notify you that your payment of LKR.${FEE_AMOUNT_LKR} is pending as on (CURUNT MONTH). Please make it clear as soon as possible.
+Regards -
+[${INSTITUTE_NAME_SINHALA}]
+${SENDER_PHONE}`;
         };
         
         /** Renders Lucide-like SVG Icons (simulated). */
@@ -132,7 +133,7 @@
             students: [],
             config: {
                 messageTemplate: createDefaultMessage(),
-                senderPhone: DEFAULT_SENDER_PHONE,
+                senderPhone: SENDER_PHONE,
                 darkMode: false,
             },
             totalEarnings: 0,
@@ -153,7 +154,7 @@
             }
         }
 
-        // --- INDEXEDDB IMPLEMENTATION (No external library) ---
+        // --- INDEXEDDB IMPLEMENTATION ---
         function openDB() {
             return new Promise((resolve, reject) => {
                 const request = indexedDB.open(DB_NAME, DB_VERSION);
@@ -295,7 +296,7 @@
             const defaultConfig = {
                 key: 'main',
                 messageTemplate: createDefaultMessage(),
-                senderPhone: DEFAULT_SENDER_PHONE,
+                senderPhone: SENDER_PHONE,
                 darkMode: false,
             };
             
@@ -351,79 +352,6 @@
                 modalCancelEl.classList.add('hidden');
             }
             setState({ modal: { isVisible: true, title, content, onOk, isPrompt } }, false);
-        }
-
-        // --- GEMINI API CALL FUNCTION ---
-        /** Calls the Gemini API with structured JSON output and exponential backoff. */
-        const geminiApiCall = async (userQuery, systemPrompt, schema) => {
-            if (!apiKey || apiKey === "YOUR_GEMINI_API_KEY_HERE") {
-                throw new Error("Gemini API Key is not set. Please replace 'YOUR_GEMINI_API_KEY_HERE' in the code.");
-            }
-
-            const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent?key=${apiKey}`;
-            const maxRetries = 3;
-            let lastError = null;
-
-            const payload = {
-                contents: [{ parts: [{ text: userQuery }] }],
-                config: {
-                    systemInstruction: systemPrompt,
-                    responseMimeType: "application/json",
-                    responseSchema: schema,
-                },
-            };
-
-            for (let attempt = 0; attempt < maxRetries; attempt++) {
-                try {
-                    const response = await fetch(apiUrl, {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify(payload)
-                    });
-
-                    if (!response.ok) {
-                        const errorBody = await response.json();
-                        throw new Error(`HTTP error! status: ${response.status}. Details: ${errorBody.error?.message || 'Unknown error'}`);
-                    }
-
-                    const result = await response.json();
-                    const jsonText = result.candidates?.[0]?.content?.parts?.[0]?.text;
-                    
-                    if (jsonText) {
-                        // Gemini's JSON response is often nested within a string, so we parse it.
-                        return JSON.parse(jsonText);
-                    }
-                    throw new Error("Gemini response was missing valid structured content.");
-                } catch (error) {
-                    lastError = error;
-                    const delay = Math.pow(2, attempt) * 1000;
-                    if (attempt < maxRetries - 1) {
-                        await new Promise(resolve => setTimeout(resolve, delay));
-                    }
-                }
-            }
-            throw lastError;
-        };
-
-        /** Generates a tailored WhatsApp message using Gemini. */
-        async function generateWhatsAppMessage(student, monthName, template) {
-            const systemPrompt = `You are an AI assistant for a tuition institute. Your task is to personalize a payment reminder message template for a specific student, ensuring the message is polite and professional. Your output MUST be a JSON object matching the provided schema. DO NOT include any text outside the JSON object.`;
-
-            const schema = {
-                type: "object",
-                properties: {
-                    personalized_message: {
-                        type: "string",
-                        description: "The complete, personalized payment reminder message based on the template, with [Student Name] replaced by the actual name, and the current month confirmed."
-                    }
-                },
-                required: ["personalized_message"]
-            };
-
-            const userQuery = `Student Name: ${student.name}. Current Month: ${monthName}. Message Template: "${template}". Generate the personalized message.`;
-
-            const result = await geminiApiCall(userQuery, systemPrompt, schema);
-            return result.personalized_message;
         }
 
         // --- UI COMPONENTS & RENDERING LOGIC ---
@@ -654,13 +582,13 @@
             // Get the latest student data from the main array
             const student = students.find(s => s.id === selectedStudent.id) || selectedStudent;
             
-            // Re-select the student in state with the latest data, in case they navigated back
+            // Re-select the student in state with the latest data
             if(student.id !== selectedStudent.id || student.payments !== selectedStudent.payments) {
                 setState({ selectedStudent: student }, false);
             }
 
             const isCurrentMonthPaid = student.payments?.[currentMonthKey] || false;
-            const reminderButtonText = isCurrentMonthPaid ? 'Payment Confirmed' : 'Send Payment Reminder (AI)';
+            const reminderButtonText = isCurrentMonthPaid ? 'Payment Confirmed' : 'Send Payment Reminder';
 
             const mainContentEl = document.getElementById('main-content');
             
@@ -753,7 +681,6 @@
 
                     btn.disabled = true;
                     const oldContent = btn.innerHTML;
-                    // Note: This relies on the original button's HTML to correctly re-apply colors on error.
                     
                     // Change to loading spinner state
                     btn.innerHTML = Icon('Loader', 'w-5 h-5 text-gray-600 dark:text-gray-300'); 
@@ -762,7 +689,7 @@
 
                     try {
                         await updateStudentPayment(studentId, monthKey, isPaid);
-                        // loadAndCalculateData is called in updateStudentPayment, which updates state and re-renders
+                        // Data update and re-render handled by updateStudentPayment -> loadAndCalculateData
                     } catch (error) {
                         showModal({ title: 'Payment Error', content: 'Could not update payment status. Please try again.', onOk: () => {} });
                         console.error("Failed to toggle payment status:", error);
@@ -783,48 +710,42 @@
 
             document.getElementById('send-whatsapp-btn').addEventListener('click', async (e) => {
                 const btn = e.currentTarget;
-                const btnTextEl = document.getElementById('whatsapp-btn-text');
-                const originalText = btnTextEl.textContent;
 
                 if (isCurrentMonthPaid) return; 
 
                 btn.disabled = true;
-                btnTextEl.innerHTML = `${Icon('Loader', 'w-5 h-5 mr-2 text-white')} Generating Message...`;
+                btn.innerHTML = `${Icon('MessageSquare', 'w-5 h-5 mr-2')} Opening WhatsApp...`;
                 btn.classList.remove('bg-green-500', 'hover:bg-green-600');
                 btn.classList.add('bg-blue-600'); 
                 
                 try {
-                    const personalizedMessage = await generateWhatsAppMessage(
-                        student, 
-                        currentMonthName, 
-                        config.messageTemplate
-                    );
-
+                    // --- SIMPLIFIED MESSAGE GENERATION (NO AI) ---
+                    const template = config.messageTemplate;
+                    const monthNameLong = new Date().toLocaleString('en-US', { month: 'long' });
+                    
+                    const personalizedMessage = template
+                        .replace('(STUDENT NAME)', student.name)
+                        .replace('(CURUNT MONTH)', monthNameLong);
+                    
                     const encodedMessage = encodeURIComponent(personalizedMessage);
                     // Standard WhatsApp link format: removes '+' from phone number for wa.me compatibility
                     const whatsappLink = `https://wa.me/${student.phone.replace('+', '')}?text=${encodedMessage}`; 
                     
                     window.open(whatsappLink, '_blank');
                     
-                    // Revert button state after success (open)
-                    btnTextEl.textContent = originalText;
-                    btn.disabled = false;
-                    btn.classList.add('bg-green-500', 'hover:bg-green-600');
-                    btn.classList.remove('bg-blue-600'); 
-
                 } catch (error) {
                     showModal({ 
-                        title: 'AI Message Error', 
-                        content: `<p>Failed to generate the WhatsApp message. Check if the **Gemini API Key** is set correctly in the code.</p><p class="mt-2 text-xs">Error: ${error.message}</p>`, 
+                        title: 'WhatsApp Error', 
+                        content: `<p>Failed to open WhatsApp. Please check the student's phone number or your device's WhatsApp installation.</p><p class="mt-2 text-xs">Error: ${error.message}</p>`, 
                         onOk: () => {} 
                     });
-
-                    // Revert button state on error
-                    btnTextEl.textContent = originalText;
+                    console.error("WhatsApp Link Failed:", error);
+                } finally {
+                    // Revert button state 
+                    btn.innerHTML = `${Icon('MessageSquare', 'w-5 h-5 mr-2')} ${reminderButtonText}`;
                     btn.disabled = false;
                     btn.classList.add('bg-green-500', 'hover:bg-green-600');
                     btn.classList.remove('bg-blue-600'); 
-                    console.error("Gemini Message Generation Failed:", error);
                 }
             });
         }
@@ -855,9 +776,9 @@
                         </div>
 
                         <div class="bg-white dark:bg-gray-800 p-5 rounded-xl shadow-lg">
-                            <h3 class="text-lg font-semibold mb-4 text-gray-900 dark:text-gray-100">AI Reminder Template</h3>
+                            <h3 class="text-lg font-semibold mb-4 text-gray-900 dark:text-gray-100">WhatsApp Template</h3>
                             <p class="text-sm text-gray-500 dark:text-gray-400 mb-3">
-                                Use <strong>[Student Name]</strong> for the AI to personalize the message.
+                                Use <strong>(STUDENT NAME)</strong> and <strong>(CURUNT MONTH)</strong>.
                             </p>
                             <textarea 
                                 id="message-template" 
