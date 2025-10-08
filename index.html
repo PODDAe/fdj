@@ -1,0 +1,814 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Nena Piyasa Fee Tracker</title>
+    <!-- Load Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        /* Custom scrollbar for a nicer look on dark theme */
+        .custom-scroll::-webkit-scrollbar {
+            width: 8px;
+        }
+        .custom-scroll::-webkit-scrollbar-track {
+            background: #1f2937; /* Gray-800 track */
+            border-radius: 10px;
+        }
+        .custom-scroll::-webkit-scrollbar-thumb {
+            background: #4f46e5; /* Tailwind indigo-600 */
+            border-radius: 10px;
+        }
+        .custom-scroll::-webkit-scrollbar-thumb:hover {
+            background: #6366f1; /* Tailwind indigo-500 */
+        }
+    </style>
+    <!-- Use Inter font family -->
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Inter', 'sans-serif'],
+                    }
+                }
+            }
+        }
+    </script>
+</head>
+<body class="bg-gray-900 font-sans min-h-screen p-4">
+
+    <!-- Main Container -->
+    <div id="app-container" class="max-w-4xl mx-auto">
+        
+        <!-- Header Section (Dark Card Style) -->
+        <header class="bg-gray-800 text-white p-6 rounded-2xl shadow-xl mb-6 transform transition-all duration-300 border-t-4 border-indigo-600">
+            <h1 class="text-3xl font-extrabold text-indigo-400 mb-2">Nena Piyasa Fee Tracker</h1>
+            <p class="text-gray-400 mb-4">Manage student payments and send quick WhatsApp reminders.</p>
+            <div id="auth-status" class="text-sm text-gray-400">Initializing database...</div>
+            <hr class="my-4 border-gray-700">
+            
+            <!-- Monthly Actions and Configuration -->
+            <div class="space-y-4 md:space-y-0 md:flex md:items-center justify-between gap-3">
+                <!-- Month Selector -->
+                <div class="flex items-center gap-2 bg-gray-700 bg-opacity-70 p-3 rounded-lg shadow-inner w-full md:w-auto">
+                    <label for="month-selector" class="text-sm font-semibold text-gray-300 whitespace-nowrap">Payment Month:</label>
+                    <select id="month-selector" class="bg-gray-900 text-gray-100 p-1 rounded-md border border-gray-600 text-sm focus:ring-indigo-500 focus:border-indigo-500"></select>
+                </div>
+
+                <!-- Bulk Reminders Button -->
+                <button id="send-reminders-btn" disabled class="w-full md:w-auto px-6 py-3 bg-emerald-600 text-white font-extrabold rounded-xl shadow-lg hover:bg-emerald-700 transition duration-200 transform hover:scale-[1.03] disabled:opacity-50 disabled:shadow-none flex items-center justify-center text-sm">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2" viewBox="0 0 20 20" fill="currentColor">
+                        <path d="M17.414 2.586a2 2 0 00-2.828 0L7 10.172V13h2.828l7.586-7.586a2 2 0 000-2.828z" />
+                        <path fill-rule="evenodd" d="M2 6a2 2 0 012-2h4a1 1 0 010 2H4v10h10v-4a1 1 0 112 0v4a2 2 0 01-2 2H4a2 2 0 01-2-2V6z" clip-rule="evenodd" />
+                    </svg>
+                    Remind (<span id="pending-count">0</span>) Pending
+                </button>
+            </div>
+            
+            <hr class="my-4 border-gray-700">
+
+            <!-- Data Management Buttons -->
+            <div class="flex flex-col sm:flex-row justify-between gap-3">
+                
+                <!-- Close Month & Advance Button -->
+                <button id="advance-month-btn" disabled class="w-full sm:w-1/3 px-4 py-2 bg-pink-600 text-white font-semibold rounded-lg hover:bg-pink-700 transition duration-150 shadow-md text-sm flex items-center justify-center">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-1" viewBox="0 0 20 20" fill="currentColor">
+                        <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm-1-8V7a1 1 0 10-2 0v2H6a1 1 0 100 2h1v1a1 1 0 102 0v-1h1a1 1 0 100-2h-1z" clip-rule="evenodd" />
+                    </svg>
+                    Close Month & Advance
+                </button>
+
+                <!-- Export CSV Button -->
+                <button id="export-csv-btn" class="w-full sm:w-1/3 px-4 py-2 bg-indigo-600 text-white font-semibold rounded-lg hover:bg-indigo-700 transition duration-150 shadow-md text-sm flex items-center justify-center">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-1" viewBox="0 0 20 20" fill="currentColor">
+                        <path fill-rule="evenodd" d="M3 17a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm3.293-7.707a1 1 0 011.414 0l3 3a1 1 0 01-1.414 1.414L10 12.414V6a1 1 0 112 0v6.414l-1.293 1.293a1 1 0 01-1.414-1.414l3-3a1 1 0 011.414 0l3 3a1 1 0 01-1.414 1.414L11 12.414V6a1 1 0 112 0v6.414l1.293 1.293a1 1 0 01-1.414 1.414l-3-3z" clip-rule="evenodd" />
+                    </svg>
+                    Export CSV
+                </button>
+
+                <!-- Import CSV File Input -->
+                <div class="relative w-full sm:w-1/3">
+                    <input type="file" id="import-csv-input" accept=".csv" class="absolute inset-0 w-full h-full opacity-0 cursor-pointer" onchange="document.getElementById('import-label').textContent = this.files.length ? this.files[0].name : 'Import CSV'">
+                    <label id="import-label" for="import-csv-input" class="w-full px-4 py-2 bg-gray-600 text-white font-semibold rounded-lg hover:bg-gray-700 transition duration-150 shadow-md text-sm flex items-center justify-center cursor-pointer">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-1" viewBox="0 0 20 20" fill="currentColor">
+                            <path fill-rule="evenodd" d="M3 17a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zM6.293 6.707a1 1 0 010-1.414l3-3a1 1 0 011.414 0l3 3a1 1 0 01-1.414 1.414L11 5.414V13a1 1 0 11-2 0V5.414l-1.293 1.293a1 1 0 01-1.414 0z" clip-rule="evenodd" />
+                        </svg>
+                        Import CSV
+                    </label>
+                </div>
+            </div>
+        </header>
+
+        <!-- Student List (Dark Card Style) -->
+        <section class="bg-gray-800 p-6 rounded-2xl shadow-xl">
+            <div class="flex justify-between items-center mb-4 border-b border-gray-700 pb-2">
+                <h2 class="text-2xl font-bold text-gray-200">Student List (Pending: <span id="list-pending-count" class="text-yellow-400">0</span>)</h2>
+                <!-- Button to open the Add Student Modal -->
+                <button id="open-add-modal-btn" class="px-4 py-2 bg-indigo-600 text-white font-semibold rounded-lg hover:bg-indigo-700 transition duration-150 shadow-md flex items-center">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-1" viewBox="0 0 20 20" fill="currentColor">
+                        <path fill-rule="evenodd" d="M10 5a1 1 0 011 1v3h3a1 1 0 110 2h-3v3a1 1 0 11-2 0v-3H6a1 1 0 110-2h3V6a1 1 0 011-1z" clip-rule="evenodd" />
+                    </svg>
+                    Add Student
+                </button>
+            </div>
+
+            <div class="overflow-x-auto custom-scroll">
+                <table class="min-w-full divide-y divide-gray-700">
+                    <thead class="bg-gray-700">
+                        <tr>
+                            <th scope="col" class="px-3 py-3 text-left text-xs font-bold text-indigo-400 uppercase tracking-wider">
+                                Name
+                            </th>
+                            <th scope="col" class="px-3 py-3 text-left text-xs font-bold text-indigo-400 uppercase tracking-wider hidden sm:table-cell">
+                                Class
+                            </th>
+                            <th scope="col" class="px-3 py-3 text-left text-xs font-bold text-indigo-400 uppercase tracking-wider hidden sm:table-cell">
+                                Phone
+                            </th>
+                            <th scope="col" class="px-3 py-3 text-center text-xs font-bold text-indigo-400 uppercase tracking-wider">
+                                Paid
+                            </th>
+                            <th scope="col" class="px-3 py-3 text-center text-xs font-bold text-indigo-400 uppercase tracking-wider">
+                                Actions
+                            </th>
+                        </tr>
+                    </thead>
+                    <tbody id="students-list-body" class="bg-gray-800 divide-y divide-gray-700">
+                        <!-- Student rows will be injected here -->
+                        <tr id="loading-row"><td colspan="5" class="text-center py-4 text-gray-500">Loading students...</td></tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <p id="no-students-message" class="text-center text-gray-500 p-4 hidden">No students added yet. Use the form above!</p>
+        </section>
+
+    </div>
+
+    <!-- 1. Custom Modal for General Messages/Alerts (Dark Look) -->
+    <div id="custom-modal" class="fixed inset-0 bg-gray-900 bg-opacity-75 hidden items-center justify-center p-4 z-50 transition-opacity duration-300">
+        <div class="bg-gray-800 p-8 rounded-2xl shadow-2xl max-w-sm w-full transform transition-all duration-300 scale-95 border-t-4 border-indigo-500">
+            <h3 id="modal-title" class="text-2xl font-bold text-gray-200 mb-3">Message</h3>
+            <p id="modal-content" class="text-gray-400 mb-6"></p>
+            <div class="flex justify-end space-x-3">
+                <button id="modal-close-btn" class="px-4 py-2 bg-indigo-600 text-white font-semibold rounded-lg hover:bg-indigo-700 transition duration-150 shadow-md">Close</button>
+            </div>
+        </div>
+    </div>
+    
+    <!-- 2. Add Student Modal (Light Card inside Dark Overlay) -->
+    <div id="add-student-modal" class="fixed inset-0 bg-gray-900 bg-opacity-75 hidden items-center justify-center p-4 z-50 transition-opacity duration-300">
+        <div class="bg-gray-100 p-8 rounded-2xl shadow-2xl max-w-lg w-full transform transition-all duration-300 scale-95">
+            <h3 class="text-2xl font-extrabold text-gray-900 mb-6 border-b pb-3 border-gray-300">Add New Student</h3>
+            
+            <form id="modal-add-student-form" class="space-y-5">
+                <div>
+                    <label for="modal-student-name" class="block text-sm font-semibold text-gray-700 mb-2">Student Name</label>
+                    <input type="text" id="modal-student-name" required placeholder="Ex: Sophia Clark" class="w-full p-3 border border-gray-300 rounded-lg focus:ring-indigo-500 focus:border-indigo-500 transition duration-150 shadow-sm text-gray-800">
+                </div>
+                
+                <div>
+                    <label for="modal-class-name" class="block text-sm font-semibold text-gray-700 mb-2">Class (Required)</label>
+                    <input type="text" id="modal-class-name" required placeholder="Ex: Advanced Math 2025" class="w-full p-3 border border-gray-300 rounded-lg focus:ring-indigo-500 focus:border-indigo-500 transition duration-150 shadow-sm text-gray-800">
+                </div>
+
+                <div>
+                    <label for="modal-phone-number" class="block text-sm font-semibold text-gray-700 mb-2">Phone Number (with country code, e.g., 9477...)</label>
+                    <input type="text" id="modal-phone-number" required placeholder="Ex: 94750882164" class="w-full p-3 border border-gray-300 rounded-lg focus:ring-indigo-500 focus:border-indigo-500 transition duration-150 shadow-sm text-gray-800">
+                    <p class="text-xs text-gray-500 mt-1">Include the country code (e.g., 94) without the '+' or leading '0'.</p>
+                </div>
+
+                <div class="flex justify-end space-x-3 pt-4">
+                    <button type="button" id="modal-cancel-btn" class="px-5 py-2 bg-gray-300 text-gray-800 font-semibold rounded-lg hover:bg-gray-400 transition duration-150 shadow-md">
+                        Cancel
+                    </button>
+                    <button type="submit" class="px-5 py-2 bg-indigo-600 text-white font-bold rounded-lg hover:bg-indigo-700 transition duration-150 shadow-lg">
+                        Add Student
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- 3. Payment History Modal (Dark Look for consistency) -->
+    <div id="payment-history-modal" class="fixed inset-0 bg-gray-900 bg-opacity-75 hidden items-center justify-center p-4 z-50 transition-opacity duration-300">
+        <div class="bg-gray-800 p-8 rounded-2xl shadow-2xl max-w-lg w-full transform transition-all duration-300 scale-95 border-t-4 border-indigo-500">
+            <h3 class="text-2xl font-bold text-gray-200 mb-4 border-b border-gray-700 pb-2">
+                Payment History for <span id="history-student-name" class="text-indigo-400"></span>
+            </h3>
+            
+            <div class="overflow-y-auto max-h-96 custom-scroll">
+                <table class="min-w-full divide-y divide-gray-700">
+                    <thead class="bg-gray-700 sticky top-0">
+                        <tr>
+                            <th class="px-4 py-2 text-left text-xs font-bold text-indigo-400 uppercase tracking-wider">Month</th>
+                            <th class="px-4 py-2 text-center text-xs font-bold text-indigo-400 uppercase tracking-wider">Status</th>
+                            <th class="px-4 py-2 text-left text-xs font-bold text-indigo-400 uppercase tracking-wider hidden sm:table-cell">Date Updated</th>
+                        </tr>
+                    </thead>
+                    <tbody id="history-table-body" class="divide-y divide-gray-700">
+                        <!-- History rows will be injected here -->
+                    </tbody>
+                </table>
+            </div>
+
+            <p id="no-history-message" class="text-center text-gray-500 p-4 hidden">No payment history found for this student.</p>
+
+            <div class="flex justify-end space-x-3 pt-6">
+                <button id="history-modal-close-btn" class="px-4 py-2 bg-indigo-600 text-white font-semibold rounded-lg hover:bg-indigo-700 transition duration-150 shadow-md">Close</button>
+            </div>
+        </div>
+    </div>
+
+
+    <!-- Firebase Core and Services Imports -->
+    <script type="module">
+        // Global variables provided by the environment
+        const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
+        const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : null;
+        const initialAuthToken = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : null;
+
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getFirestore, doc, addDoc, setDoc, deleteDoc, onSnapshot, collection, query, updateDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+        import { setLogLevel } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+        // Firebase Instances
+        let app, db, auth;
+        let userId = null;
+        let isAuthReady = false;
+        let currentTrackingMonth = ''; // YYYY-MM format
+
+        // Configuration
+        const FEE_AMOUNT = "LKR.1200";
+        const INSTITUTE_NAME = "[Nena Piyasa Higher Education Education Institute]";
+        const WHATSAPP_NUMBER = "94750882164"; 
+
+        // UI Elements
+        const authStatusEl = document.getElementById('auth-status');
+        const studentsListBody = document.getElementById('students-list-body');
+        const sendRemindersBtn = document.getElementById('send-reminders-btn');
+        const pendingCountEl = document.getElementById('pending-count');
+        const listPendingCountEl = document.getElementById('list-pending-count');
+        const loadingRowEl = document.getElementById('loading-row');
+        const noStudentsMessageEl = document.getElementById('no-students-message');
+        
+        // Modal UI Elements
+        const openAddModalBtn = document.getElementById('open-add-modal-btn');
+        const addStudentModal = document.getElementById('add-student-modal');
+        const modalCancelBtn = document.getElementById('modal-cancel-btn');
+        const modalAddStudentForm = document.getElementById('modal-add-student-form');
+        
+        // NEW UI Elements for Monthly/Data Management
+        const monthSelector = document.getElementById('month-selector');
+        const advanceMonthBtn = document.getElementById('advance-month-btn');
+        const exportCsvBtn = document.getElementById('export-csv-btn');
+        const importCsvInput = document.getElementById('import-csv-input');
+        
+        // NEW UI Elements for History Modal
+        const paymentHistoryModal = document.getElementById('payment-history-modal');
+        const historyStudentNameEl = document.getElementById('history-student-name');
+        const historyTableBodyEl = document.getElementById('history-table-body');
+        const historyModalCloseBtn = document.getElementById('history-modal-close-btn');
+        const noHistoryMessageEl = document.getElementById('no-history-message');
+
+
+        // --- Utility Functions: Date/Month ---
+
+        /** Generates 'YYYY-MM' key for a given date */
+        function getMonthKey(date) {
+            const year = date.getFullYear();
+            const month = String(date.getMonth() + 1).padStart(2, '0');
+            return `${year}-${month}`;
+        }
+        
+        /** Converts YYYY-MM to a readable month string (e.g., October 2025) */
+        function formatMonthKey(monthKey) {
+            const [year, month] = monthKey.split('-');
+            const date = new Date(year, month - 1);
+            return date.toLocaleDateString('en-US', { year: 'numeric', month: 'long' });
+        }
+        
+        /** Converts timestamp to a readable date string */
+        function formatTimestamp(timestamp) {
+            if (!timestamp) return 'N/A';
+            const date = new Date(timestamp);
+            return date.toLocaleDateString('en-US', { 
+                year: 'numeric', 
+                month: 'short', 
+                day: 'numeric', 
+                hour: '2-digit', 
+                minute: '2-digit' 
+            });
+        }
+
+        /** Generates array of last 12 months for selector */
+        function generateMonthOptions() {
+            monthSelector.innerHTML = '';
+            const today = new Date();
+            
+            // Generate options for the last 12 months (e.g., current month and 11 previous)
+            for (let i = 0; i < 12; i++) {
+                const date = new Date(today.getFullYear(), today.getMonth() - i, 1);
+                const monthKey = getMonthKey(date);
+                const monthLabel = formatMonthKey(monthKey);
+                
+                const option = document.createElement('option');
+                option.value = monthKey;
+                option.textContent = monthLabel;
+                monthSelector.appendChild(option);
+            }
+        }
+        
+        /** Advances the current tracking month by one */
+        function getNextMonthKey(currentKey) {
+            const [year, month] = currentKey.split('-').map(Number);
+            let nextYear = year;
+            let nextMonth = month + 1;
+
+            if (nextMonth > 12) {
+                nextMonth = 1;
+                nextYear += 1;
+            }
+            return `${nextYear}-${String(nextMonth).padStart(2, '0')}`;
+        }
+        
+        // --- Utility Functions: General ---
+
+        /** Shows a custom modal message (replaces alert/confirm) */
+        function showModal(title, content) {
+            const modal = document.getElementById('custom-modal');
+            document.getElementById('modal-title').textContent = title;
+            document.getElementById('modal-content').textContent = content;
+            modal.classList.remove('hidden');
+            modal.classList.add('flex');
+            document.getElementById('modal-close-btn').onclick = () => {
+                modal.classList.add('hidden');
+                modal.classList.remove('flex');
+            };
+        }
+
+        /** Controls the display of the Add Student Modal */
+        function openAddStudentModal() {
+            addStudentModal.classList.remove('hidden');
+            addStudentModal.classList.add('flex');
+            modalAddStudentForm.reset();
+            document.getElementById('modal-student-name').focus();
+        }
+
+        function closeAddStudentModal() {
+            addStudentModal.classList.add('hidden');
+            addStudentModal.classList.remove('flex');
+        }
+        
+        /** Controls the display of the Payment History Modal */
+        function closePaymentHistoryModal() {
+            paymentHistoryModal.classList.add('hidden');
+            paymentHistoryModal.classList.remove('flex');
+        }
+
+        /** Formats the message for WhatsApp deep link */
+        function createWhatsAppMessage(name) {
+            let message = `Hello ${name}, This is to notify you that your payment of ${FEE_AMOUNT} for ${formatMonthKey(currentTrackingMonth)} is pending. Please make it clear as soon as possible. Regards - ${INSTITUTE_NAME}`;
+            return encodeURIComponent(message);
+        }
+
+        // --- Firebase Initialization and Auth ---
+
+        /** Initializes Firebase and sets up authentication */
+        async function initFirebase() {
+            setLogLevel('debug');
+            if (!firebaseConfig) {
+                authStatusEl.textContent = "Error: Firebase config is missing.";
+                return;
+            }
+            
+            // 1. Initialize Month Selector and State
+            generateMonthOptions();
+            currentTrackingMonth = monthSelector.value = getMonthKey(new Date());
+
+            try {
+                app = initializeApp(firebaseConfig);
+                db = getFirestore(app);
+                auth = getAuth(app);
+
+                authStatusEl.textContent = "Authenticating...";
+
+                if (initialAuthToken) {
+                    await signInWithCustomToken(auth, initialAuthToken);
+                } else {
+                    await signInAnonymously(auth);
+                }
+
+                onAuthStateChanged(auth, (user) => {
+                    if (user) {
+                        userId = user.uid;
+                        isAuthReady = true;
+                        authStatusEl.innerHTML = `<span class="font-semibold text-emerald-400">Authenticated</span> | User ID: ${userId.substring(0, 8)}...`;
+                        console.log("User authenticated:", userId);
+                        setupListeners(); 
+                        sendRemindersBtn.disabled = false; 
+                        advanceMonthBtn.disabled = false;
+                        monthSelector.addEventListener('change', handleMonthChange);
+                    } else {
+                        userId = null;
+                        isAuthReady = false;
+                        authStatusEl.textContent = "Authentication failed. Using anonymous mode.";
+                        sendRemindersBtn.disabled = true;
+                        advanceMonthBtn.disabled = true;
+                        monthSelector.removeEventListener('change', handleMonthChange);
+                    }
+                });
+                
+                // Attach close handler for history modal
+                historyModalCloseBtn.addEventListener('click', closePaymentHistoryModal);
+
+            } catch (error) {
+                console.error("Firebase Initialization Error:", error);
+                authStatusEl.textContent = `Authentication Error: ${error.message}`;
+            }
+        }
+
+        // --- CRUD Operations ---
+
+        /** Gets the collection reference for the current user's students */
+        function getStudentsCollectionRef() {
+            if (!db || !userId) return null;
+            return collection(db, `artifacts/${appId}/users/${userId}/students`);
+        }
+
+        /** Adds a new student to Firestore */
+        async function addStudent(name, phoneNumber, className) {
+            const studentsRef = getStudentsCollectionRef();
+            if (!studentsRef) return showModal("Error", "Database not initialized. Please refresh.");
+
+            try {
+                await addDoc(studentsRef, {
+                    name: name,
+                    phoneNumber: phoneNumber,
+                    className: className,
+                    payments: {
+                        [currentTrackingMonth]: { 
+                            paid: false,
+                            date: new Date().getTime()
+                        }
+                    },
+                    createdAt: new Date().getTime()
+                });
+            } catch (error) {
+                console.error("Error adding document: ", error);
+                showModal("Error", "Failed to add student. Check console for details.");
+            }
+        }
+
+        /** Toggles the payment status (paid/unpaid) for the current month */
+        async function togglePaymentStatus(studentId, currentStatus) {
+            const studentsRef = getStudentsCollectionRef();
+            if (!studentsRef) return showModal("Error", "Database not initialized. Please refresh.");
+
+            try {
+                const studentDocRef = doc(db, studentsRef.path, studentId);
+                const statusKey = `payments.${currentTrackingMonth}.paid`;
+                const dateKey = `payments.${currentTrackingMonth}.date`;
+
+                await updateDoc(studentDocRef, {
+                    [statusKey]: !currentStatus,
+                    [dateKey]: new Date().getTime()
+                });
+            } catch (error) {
+                console.error("Error updating payment status: ", error);
+                showModal("Error", "Failed to update payment status.");
+            }
+        }
+
+        /** Deletes a student document */
+        async function deleteStudent(studentId) {
+            const studentsRef = getStudentsCollectionRef();
+            if (!studentsRef) return showModal("Error", "Database not initialized. Please refresh.");
+            try {
+                const studentDocRef = doc(db, studentsRef.path, studentId);
+                await deleteDoc(studentDocRef);
+            } catch (error) {
+                console.error("Error deleting student: ", error);
+                showModal("Error", "Failed to delete student.");
+            }
+        }
+        
+        /** Shows the payment history modal for a selected student */
+        function showPaymentHistory(studentId) {
+            const student = cachedStudents.find(s => s.id === studentId);
+            if (!student) return showModal("Error", "Student data not found.");
+
+            historyStudentNameEl.textContent = student.name;
+            historyTableBodyEl.innerHTML = '';
+            
+            const payments = student.payments || {};
+            const monthKeys = Object.keys(payments).sort().reverse(); // Show newest months first
+
+            if (monthKeys.length === 0) {
+                noHistoryMessageEl.classList.remove('hidden');
+            } else {
+                noHistoryMessageEl.classList.add('hidden');
+                
+                monthKeys.forEach(monthKey => {
+                    const payment = payments[monthKey];
+                    const isPaid = payment.paid || false;
+                    const dateUpdated = payment.date;
+                    
+                    const statusClass = isPaid
+                        ? 'bg-teal-500 text-white'
+                        : 'bg-yellow-500 text-gray-900';
+                    
+                    const row = document.createElement('tr');
+                    row.className = 'hover:bg-gray-700/50 transition duration-150 border-b border-gray-700';
+                    row.innerHTML = `
+                        <td class="px-4 py-3 whitespace-nowrap text-sm font-medium text-gray-100">${formatMonthKey(monthKey)}</td>
+                        <td class="px-4 py-3 whitespace-nowrap text-center text-sm">
+                            <span class="px-3 py-1 rounded-full text-xs font-semibold ${statusClass}">
+                                ${isPaid ? 'PAID' : 'PENDING'}
+                            </span>
+                        </td>
+                        <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-400 hidden sm:table-cell">
+                            ${formatTimestamp(dateUpdated)}
+                        </td>
+                    `;
+                    historyTableBodyEl.appendChild(row);
+                });
+            }
+
+            paymentHistoryModal.classList.remove('hidden');
+            paymentHistoryModal.classList.add('flex');
+        }
+
+
+        // --- Data Management (Import/Export) ---
+        
+        /** Converts students list to CSV format and downloads it */
+        function handleExportCSV(students) {
+            if (students.length === 0) {
+                return showModal("Export Failed", "No students available to export.");
+            }
+
+            const header = ['Name', 'Class', 'Phone', `Paid_Status_${currentTrackingMonth}`];
+            const rows = students.map(student => {
+                const isPaid = student.payments?.[currentTrackingMonth]?.paid || false;
+                return [
+                    student.name,
+                    student.className || '',
+                    student.phoneNumber,
+                    isPaid ? 'PAID' : 'PENDING'
+                ].map(item => `"${item.toString().replace(/"/g, '""')}"`).join(',');
+            });
+
+            const csvContent = [header.join(','), ...rows].join('\n');
+            const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+            const link = document.createElement('a');
+            
+            link.href = URL.createObjectURL(blob);
+            link.setAttribute('download', `nena_piyasa_students_${currentTrackingMonth}.csv`);
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            showModal("Export Successful", `The student list for ${currentTrackingMonth} has been exported to a CSV file.`);
+        }
+
+        /** Handles CSV file reading and bulk student import */
+        function handleImportCSV(e) {
+            const file = e.target.files[0];
+            if (!file) return;
+
+            const reader = new FileReader();
+            reader.onload = async (event) => {
+                const csvText = event.target.result;
+                const lines = csvText.split('\n').filter(line => line.trim() !== '');
+                if (lines.length < 2) {
+                    return showModal("Import Error", "CSV file is empty or malformed.");
+                }
+
+                const header = lines[0].toLowerCase().replace(/\s/g, '').split(',').map(h => h.replace(/"/g, '').trim());
+                const nameIndex = header.findIndex(h => h.includes('name'));
+                const phoneIndex = header.findIndex(h => h.includes('phone'));
+                const classIndex = header.findIndex(h => h.includes('class'));
+
+                if (nameIndex === -1 || phoneIndex === -1) {
+                    return showModal("Import Error", "CSV must contain columns named 'Name' and 'Phone'.");
+                }
+
+                let importCount = 0;
+                for (let i = 1; i < lines.length; i++) {
+                    const values = lines[i].split(',').map(v => v.replace(/"/g, '').trim());
+                    
+                    const name = values[nameIndex];
+                    const phone = values[phoneIndex].replace(/[^0-9]/g, '');
+                    const className = classIndex !== -1 && values[classIndex] ? values[classIndex] : 'General';
+
+                    if (name && phone.length >= 8) {
+                        await addStudent(name, phone, className);
+                        importCount++;
+                    }
+                }
+                showModal("Import Complete", `${importCount} new students successfully added from the CSV file.`);
+                document.getElementById('import-label').textContent = 'Import CSV';
+                importCsvInput.value = '';
+            };
+
+            reader.onerror = () => showModal("Import Error", "Failed to read file.");
+            reader.readAsText(file);
+        }
+
+        /** Advances the tracking month and resets status for the new month */
+        function handleAdvanceMonth() {
+            const nextMonthKey = getNextMonthKey(currentTrackingMonth);
+            
+            showModal(
+                "Confirm Month Advance",
+                `Are you sure you want to close tracking for ${formatMonthKey(currentTrackingMonth)} and advance to ${formatMonthKey(nextMonthKey)}? All students will be marked as PENDING for the new month automatically.`
+            );
+            
+            // Advance the month in the selector and trigger change event
+            currentTrackingMonth = nextMonthKey;
+            
+            generateMonthOptions(); 
+            monthSelector.value = nextMonthKey;
+            
+            // Manually trigger the list re-render
+            handleMonthChange();
+            
+            showModal(
+                "Month Advanced", 
+                `The fee tracker has been successfully advanced to **${formatMonthKey(nextMonthKey)}**. All students are now automatically set to PENDING for this new month.`
+            );
+        }
+
+
+        // --- UI Rendering and Event Handlers ---
+        
+        /** Handles change in the month selector */
+        function handleMonthChange() {
+            currentTrackingMonth = monthSelector.value;
+            // Force a re-render of the list using the last known data
+            if (typeof cachedStudents !== 'undefined') {
+                 renderStudentsList(cachedStudents);
+            }
+        }
+
+
+        let cachedStudents = []; // Local cache to allow fast month switching without re-fetching
+
+        /** Renders the list of students using the real-time data */
+        function renderStudentsList(students) {
+            cachedStudents = students; // Cache the latest data
+            studentsListBody.innerHTML = '';
+            if(loadingRowEl) loadingRowEl.remove();
+            
+            let pendingStudents = [];
+            const selectedMonth = currentTrackingMonth;
+
+            if (students.length === 0) {
+                noStudentsMessageEl.classList.remove('hidden');
+                sendRemindersBtn.disabled = true;
+            } else {
+                noStudentsMessageEl.classList.add('hidden');
+                students.sort((a, b) => a.name.localeCompare(b.name));
+
+                students.forEach(student => {
+                    const isPaid = student.payments?.[selectedMonth]?.paid || false;
+
+                    if (!isPaid) {
+                        pendingStudents.push(student);
+                    }
+                    
+                    const statusClass = isPaid
+                        ? 'bg-teal-500 text-white hover:bg-teal-600'
+                        : 'bg-yellow-500 text-gray-900 hover:bg-yellow-400';
+
+                    const row = document.createElement('tr');
+                    row.className = 'hover:bg-gray-700/50 transition duration-150 border-b border-gray-700';
+                    row.innerHTML = `
+                        <td class="px-3 py-4 whitespace-nowrap text-sm font-medium text-gray-100">
+                            ${student.name}
+                        </td>
+                        <td class="px-3 py-4 whitespace-nowrap text-sm text-gray-400 hidden sm:table-cell">
+                            ${student.className || '-'}
+                        </td>
+                        <td class="px-3 py-4 whitespace-nowrap text-sm text-gray-400 hidden sm:table-cell">
+                            +${student.phoneNumber}
+                        </td>
+                        <td class="px-3 py-4 whitespace-nowrap text-center text-sm">
+                            <button data-id="${student.id}" data-paid="${isPaid}" class="toggle-paid-btn px-3 py-1 rounded-full text-xs font-semibold shadow-md transition duration-150 transform hover:scale-105 ${statusClass}">
+                                ${isPaid ? 'Paid' : 'Pending'}
+                            </button>
+                        </td>
+                        <td class="px-3 py-4 whitespace-nowrap text-center text-sm font-medium flex justify-center space-x-2">
+                            <button data-id="${student.id}" class="view-history-btn text-indigo-400 hover:text-indigo-500 p-2 rounded-full hover:bg-gray-700 transition duration-150" title="View History">
+                                <!-- History Icon -->
+                                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                    <polyline points="12 8 12 12 14 10"></polyline>
+                                    <path d="M12 2a10 10 0 1 0 10 10A10 10 0 0 0 12 2Z"></path>
+                                </svg>
+                            </button>
+                            <button data-id="${student.id}" class="delete-student-btn text-red-400 hover:text-red-500 p-2 rounded-full hover:bg-gray-700 transition duration-150" title="Delete Student">
+                                <!-- Trash Icon -->
+                                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                    <path d="M3 6h18"></path>
+                                    <path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"></path>
+                                    <path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"></path>
+                                </svg>
+                            </button>
+                        </td>
+                    `;
+                    studentsListBody.appendChild(row);
+                });
+
+                // Update counts and button state
+                pendingCountEl.textContent = pendingStudents.length;
+                listPendingCountEl.textContent = pendingStudents.length;
+                sendRemindersBtn.disabled = pendingStudents.length === 0;
+
+                // Attach event listeners for the dynamically created buttons
+                document.querySelectorAll('.toggle-paid-btn').forEach(button => {
+                    button.addEventListener('click', (e) => {
+                        const id = e.currentTarget.dataset.id;
+                        const paid = e.currentTarget.dataset.paid === 'true';
+                        togglePaymentStatus(id, paid);
+                    });
+                });
+                
+                document.querySelectorAll('.view-history-btn').forEach(button => {
+                    button.addEventListener('click', (e) => {
+                        const id = e.currentTarget.dataset.id;
+                        showPaymentHistory(id);
+                    });
+                });
+
+                document.querySelectorAll('.delete-student-btn').forEach(button => {
+                    button.addEventListener('click', (e) => {
+                        const id = e.currentTarget.dataset.id;
+                        showModal(
+                            "Confirm Deletion", 
+                            "Student will be deleted permanently. Click 'Close' and then delete."
+                        );
+                        deleteStudent(id); 
+                    });
+                });
+
+                sendRemindersBtn.onclick = () => sendWhatsAppReminders(pendingStudents);
+            }
+        }
+
+        /** Sets up the real-time data listener (onSnapshot) */
+        function setupListeners() {
+            if (!isAuthReady || !db) return;
+
+            const studentsRef = getStudentsCollectionRef();
+            if (!studentsRef) return;
+
+            onSnapshot(query(studentsRef), (snapshot) => {
+                const students = [];
+                snapshot.forEach(doc => {
+                    students.push({ id: doc.id, ...doc.data() });
+                });
+                renderStudentsList(students);
+            }, (error) => {
+                console.error("Firestore listen error: ", error);
+                showModal("Data Error", "Failed to load student data. Please check your connection.");
+            });
+        }
+
+        // --- Main Execution ---
+
+        // Handle Modals
+        openAddModalBtn.addEventListener('click', openAddStudentModal);
+        modalCancelBtn.addEventListener('click', closeAddStudentModal);
+        
+        // Handle Data Management
+        exportCsvBtn.addEventListener('click', () => handleExportCSV(cachedStudents));
+        importCsvInput.addEventListener('change', handleImportCSV);
+        advanceMonthBtn.addEventListener('click', handleAdvanceMonth);
+
+
+        // Handle Add Student Form Submission
+        modalAddStudentForm.addEventListener('submit', (e) => {
+            e.preventDefault();
+            const nameInput = document.getElementById('modal-student-name');
+            const phoneInput = document.getElementById('modal-phone-number');
+            const classInput = document.getElementById('modal-class-name');
+
+            const name = nameInput.value.trim();
+            const phone = phoneInput.value.trim().replace(/[^0-9]/g, ''); 
+            const className = classInput.value.trim();
+
+            if (name && phone.length >= 8 && className) { 
+                addStudent(name, phone, className);
+                closeAddStudentModal(); 
+            } else {
+                showModal("Invalid Input", "Please ensure the student name, class, and valid 8+ digit phone number are entered.");
+            }
+        });
+
+        // Initialize the application on page load
+        window.onload = initFirebase;
+    </script>
+</body>
+</html>
