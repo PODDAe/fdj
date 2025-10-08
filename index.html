@@ -3,27 +3,34 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Nena Piyasa Fee Tracker</title>
-    <!-- Load Tailwind CSS -->
+    <title>Nena Piyasa Fee Tracker (Offline)</title>
+    <!-- Load Tailwind CSS for styling -->
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
-        /* Custom scrollbar for a nicer look on dark theme */
+        /* Custom scrollbar for aesthetics */
         .custom-scroll::-webkit-scrollbar {
             width: 8px;
         }
         .custom-scroll::-webkit-scrollbar-track {
-            background: #1f2937; /* Gray-800 track */
-            border-radius: 10px;
+            background: #0f172a; /* Slate-900 track */
         }
         .custom-scroll::-webkit-scrollbar-thumb {
-            background: #4f46e5; /* Tailwind indigo-600 */
+            background: #6366f1; /* Indigo-500 thumb */
             border-radius: 10px;
         }
         .custom-scroll::-webkit-scrollbar-thumb:hover {
-            background: #6366f1; /* Tailwind indigo-500 */
+            background: #4f46e5;
+        }
+        /* Hide scrollbar in general for a cleaner mobile look */
+        .hide-scrollbar::-webkit-scrollbar {
+            display: none;
+        }
+        .hide-scrollbar {
+            -ms-overflow-style: none;  /* IE and Edge */
+            scrollbar-width: none;  /* Firefox */
         }
     </style>
-    <!-- Use Inter font family -->
+    <!-- Configure Inter font -->
     <script>
         tailwind.config = {
             theme: {
@@ -36,151 +43,120 @@
         }
     </script>
 </head>
-<body class="bg-gray-900 font-sans min-h-screen p-4">
+<body class="bg-slate-900 font-sans min-h-screen p-3 sm:p-6 text-gray-100">
 
     <!-- Main Container -->
-    <div id="app-container" class="max-w-4xl mx-auto">
+    <div id="app-container" class="max-w-3xl mx-auto">
         
-        <!-- Header Section (Dark Card Style) -->
-        <header class="bg-gray-800 text-white p-6 rounded-2xl shadow-xl mb-6 transform transition-all duration-300 border-t-4 border-indigo-600">
-            <h1 class="text-3xl font-extrabold text-indigo-400 mb-2">Nena Piyasa Fee Tracker</h1>
-            <p class="text-gray-400 mb-4">Manage student payments and send quick WhatsApp reminders.</p>
-            <div id="auth-status" class="text-sm text-gray-400">Initializing database...</div>
-            <hr class="my-4 border-gray-700">
-            
-            <!-- Monthly Actions and Configuration -->
-            <div class="space-y-4 md:space-y-0 md:flex md:items-center justify-between gap-3">
-                <!-- Month Selector -->
-                <div class="flex items-center gap-2 bg-gray-700 bg-opacity-70 p-3 rounded-lg shadow-inner w-full md:w-auto">
-                    <label for="month-selector" class="text-sm font-semibold text-gray-300 whitespace-nowrap">Payment Month:</label>
-                    <select id="month-selector" class="bg-gray-900 text-gray-100 p-1 rounded-md border border-gray-600 text-sm focus:ring-indigo-500 focus:border-indigo-500"></select>
+        <!-- Header & Controls Card -->
+        <header class="bg-slate-800 p-5 rounded-xl shadow-2xl mb-6 border-t-4 border-indigo-500">
+            <h1 class="text-2xl sm:text-3xl font-extrabold text-indigo-400 mb-2">
+                Nena Piyasa Fee Tracker
+            </h1>
+            <p class="text-gray-400 mb-4 text-sm">Offline Payment Management (Data saved locally in your browser)</p>
+
+            <!-- Month Selector and Statistics -->
+            <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 mb-4">
+                <div class="flex items-center gap-2 bg-slate-700/50 p-2 rounded-lg shadow-inner w-full sm:w-auto">
+                    <label for="month-selector" class="text-sm font-semibold text-gray-300 whitespace-nowrap">Current Month:</label>
+                    <select id="month-selector" class="bg-slate-900 text-gray-100 p-1 rounded-md border border-slate-600 text-sm focus:ring-indigo-500 focus:border-indigo-500"></select>
                 </div>
-
-                <!-- Bulk Reminders Button -->
-                <button id="send-reminders-btn" disabled class="w-full md:w-auto px-6 py-3 bg-emerald-600 text-white font-extrabold rounded-xl shadow-lg hover:bg-emerald-700 transition duration-200 transform hover:scale-[1.03] disabled:opacity-50 disabled:shadow-none flex items-center justify-center text-sm">
-                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2" viewBox="0 0 20 20" fill="currentColor">
-                        <path d="M17.414 2.586a2 2 0 00-2.828 0L7 10.172V13h2.828l7.586-7.586a2 2 0 000-2.828z" />
-                        <path fill-rule="evenodd" d="M2 6a2 2 0 012-2h4a1 1 0 010 2H4v10h10v-4a1 1 0 112 0v4a2 2 0 01-2 2H4a2 2 0 01-2-2V6z" clip-rule="evenodd" />
-                    </svg>
-                    Remind (<span id="pending-count">0</span>) Pending
-                </button>
-            </div>
-            
-            <hr class="my-4 border-gray-700">
-
-            <!-- Data Management Buttons -->
-            <div class="flex flex-col sm:flex-row justify-between gap-3">
-                
-                <!-- Close Month & Advance Button -->
-                <button id="advance-month-btn" disabled class="w-full sm:w-1/3 px-4 py-2 bg-pink-600 text-white font-semibold rounded-lg hover:bg-pink-700 transition duration-150 shadow-md text-sm flex items-center justify-center">
-                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-1" viewBox="0 0 20 20" fill="currentColor">
-                        <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm-1-8V7a1 1 0 10-2 0v2H6a1 1 0 100 2h1v1a1 1 0 102 0v-1h1a1 1 0 100-2h-1z" clip-rule="evenodd" />
-                    </svg>
-                    Close Month & Advance
-                </button>
-
-                <!-- Export CSV Button -->
-                <button id="export-csv-btn" class="w-full sm:w-1/3 px-4 py-2 bg-indigo-600 text-white font-semibold rounded-lg hover:bg-indigo-700 transition duration-150 shadow-md text-sm flex items-center justify-center">
-                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-1" viewBox="0 0 20 20" fill="currentColor">
-                        <path fill-rule="evenodd" d="M3 17a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm3.293-7.707a1 1 0 011.414 0l3 3a1 1 0 01-1.414 1.414L10 12.414V6a1 1 0 112 0v6.414l-1.293 1.293a1 1 0 01-1.414-1.414l3-3a1 1 0 011.414 0l3 3a1 1 0 01-1.414 1.414L11 12.414V6a1 1 0 112 0v6.414l1.293 1.293a1 1 0 01-1.414 1.414l-3-3z" clip-rule="evenodd" />
-                    </svg>
-                    Export CSV
-                </button>
-
-                <!-- Import CSV File Input -->
-                <div class="relative w-full sm:w-1/3">
-                    <input type="file" id="import-csv-input" accept=".csv" class="absolute inset-0 w-full h-full opacity-0 cursor-pointer" onchange="document.getElementById('import-label').textContent = this.files.length ? this.files[0].name : 'Import CSV'">
-                    <label id="import-label" for="import-csv-input" class="w-full px-4 py-2 bg-gray-600 text-white font-semibold rounded-lg hover:bg-gray-700 transition duration-150 shadow-md text-sm flex items-center justify-center cursor-pointer">
-                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-1" viewBox="0 0 20 20" fill="currentColor">
-                            <path fill-rule="evenodd" d="M3 17a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zM6.293 6.707a1 1 0 010-1.414l3-3a1 1 0 011.414 0l3 3a1 1 0 01-1.414 1.414L11 5.414V13a1 1 0 11-2 0V5.414l-1.293 1.293a1 1 0 01-1.414 0z" clip-rule="evenodd" />
-                        </svg>
-                        Import CSV
-                    </label>
+                <div class="text-sm font-semibold text-gray-300">
+                    Total Students: <span id="total-students-count" class="text-indigo-400 font-bold">0</span>
                 </div>
             </div>
-        </header>
 
-        <!-- Student List (Dark Card Style) -->
-        <section class="bg-gray-800 p-6 rounded-2xl shadow-xl">
-            <div class="flex justify-between items-center mb-4 border-b border-gray-700 pb-2">
-                <h2 class="text-2xl font-bold text-gray-200">Student List (Pending: <span id="list-pending-count" class="text-yellow-400">0</span>)</h2>
-                <!-- Button to open the Add Student Modal -->
-                <button id="open-add-modal-btn" class="px-4 py-2 bg-indigo-600 text-white font-semibold rounded-lg hover:bg-indigo-700 transition duration-150 shadow-md flex items-center">
-                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-1" viewBox="0 0 20 20" fill="currentColor">
-                        <path fill-rule="evenodd" d="M10 5a1 1 0 011 1v3h3a1 1 0 110 2h-3v3a1 1 0 11-2 0v-3H6a1 1 0 110-2h3V6a1 1 0 011-1z" clip-rule="evenodd" />
-                    </svg>
+            <hr class="my-4 border-slate-700">
+            
+            <!-- Action Buttons: Main Actions -->
+            <div class="space-y-3 sm:space-y-0 sm:flex sm:justify-between sm:gap-4 mb-4">
+                <!-- Add Student Button -->
+                <button id="open-add-modal-btn" class="w-full sm:w-1/3 px-4 py-3 bg-indigo-600 text-white font-semibold rounded-lg shadow-lg hover:bg-indigo-700 transition duration-150 flex items-center justify-center text-sm transform hover:scale-[1.02]">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-1" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M10 5a1 1 0 011 1v3h3a1 1 0 110 2h-3v3a1 1 0 11-2 0v-3H6a1 1 0 110-2h3V6a1 1 0 011-1z" clip-rule="evenodd" /></svg>
                     Add Student
                 </button>
+
+                <!-- Bulk Reminders Button -->
+                <button id="send-reminders-btn" class="w-full sm:w-2/3 px-4 py-3 bg-emerald-600 text-white font-extrabold rounded-lg shadow-lg hover:bg-emerald-700 transition duration-200 transform hover:scale-[1.02] disabled:opacity-50 disabled:shadow-none flex items-center justify-center text-sm">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2" viewBox="0 0 20 20" fill="currentColor"><path d="M17.414 2.586a2 2 0 00-2.828 0L7 10.172V13h2.828l7.586-7.586a2 2 0 000-2.828z" /><path fill-rule="evenodd" d="M2 6a2 2 0 012-2h4a1 1 0 010 2H4v10h10v-4a1 1 0 112 0v4a2 2 0 01-2 2H4a2 2 0 01-2-2V6z" clip-rule="evenodd" /></svg>
+                    Remind (<span id="pending-count">0</span>) Pending via WhatsApp
+                </button>
+            </div>
+            
+            <!-- Action Buttons: Data Management (CSV and Cloning) -->
+            <div class="flex flex-wrap gap-3 mt-4 justify-between">
+                <button id="export-csv-btn" class="w-full sm:w-auto flex-1 px-4 py-2 bg-slate-700 text-gray-200 font-semibold rounded-lg shadow-md hover:bg-slate-600 transition duration-150 text-xs sm:text-sm">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 mr-1 inline" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M3 17a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm3.293-7.707a1 1 0 011.414 0L10 11.586l1.293-1.293a1 1 0 111.414 1.414l-2 2a1 1 0 01-1.414 0l-2-2a1 1 0 010-1.414z" clip-rule="evenodd" /><path fill-rule="evenodd" d="M9 2a1 1 0 011 1v7a1 1 0 11-2 0V3a1 1 0 011-1z" clip-rule="evenodd" /></svg>
+                    Export Students (CSV)
+                </button>
+                
+                <label for="import-csv-input" class="w-full sm:w-auto flex-1 cursor-pointer px-4 py-2 bg-slate-700 text-gray-200 font-semibold rounded-lg shadow-md hover:bg-slate-600 transition duration-150 text-xs sm:text-sm text-center">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 mr-1 inline" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M16.707 10.293a1 1 0 010 1.414l-3 3a1 1 0 01-1.414 0l-3-3a1 1 0 111.414-1.414L9 12.586V5a1 1 0 012 0v7.586l1.293-1.293a1 1 0 011.414 0z" clip-rule="evenodd" /><path fill-rule="evenodd" d="M3 17a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1z" clip-rule="evenodd" /></svg>
+                    Import Students (CSV)
+                </label>
+                <input type="file" id="import-csv-input" accept=".csv" class="hidden">
+
+                <button id="clone-pending-btn" class="w-full sm:w-auto flex-1 px-4 py-2 bg-yellow-600 text-white font-bold rounded-lg shadow-md hover:bg-yellow-700 transition duration-150 text-xs sm:text-sm">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 mr-1 inline" viewBox="0 0 20 20" fill="currentColor"><path d="M7 3a1 1 0 000 2h6a1 1 0 100-2H7z" /><path fill-rule="evenodd" d="M3 8a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1z" clip-rule="evenodd" /><path d="M5 15a2 2 0 114 0V9a1 1 0 011-1h2a1 1 0 011 1v6a2 2 0 114 0V5a2 2 0 10-4 0v1h-2V5a2 2 0 10-4 0v1H5V5a2 2 0 10-4 0v11a1 1 0 001 1h14a1 1 0 001-1v-5a2 2 0 10-4 0v1h-2V5a2 2 0 10-4 0v1H5V5a2 2 0 10-4 0v11a1 1 0 001 1h14a1 1 0 001-1v-5a2 2 0 10-4 0v1h-2V5a2 2 0 10-4 0v1H5V5z" /></svg>
+                    Clone Pending to New Month
+                </button>
             </div>
 
+        </header>
+
+        <!-- Student List Section -->
+        <section class="bg-slate-800 p-5 rounded-xl shadow-2xl">
+            <h2 class="text-xl font-bold text-gray-200 mb-4 border-b border-slate-700 pb-2">
+                Payment Status
+            </h2>
+
             <div class="overflow-x-auto custom-scroll">
-                <table class="min-w-full divide-y divide-gray-700">
-                    <thead class="bg-gray-700">
+                <table class="min-w-full divide-y divide-slate-700">
+                    <thead class="bg-slate-700">
                         <tr>
-                            <th scope="col" class="px-3 py-3 text-left text-xs font-bold text-indigo-400 uppercase tracking-wider">
-                                Name
-                            </th>
-                            <th scope="col" class="px-3 py-3 text-left text-xs font-bold text-indigo-400 uppercase tracking-wider hidden sm:table-cell">
-                                Class
-                            </th>
-                            <th scope="col" class="px-3 py-3 text-left text-xs font-bold text-indigo-400 uppercase tracking-wider hidden sm:table-cell">
-                                Phone
-                            </th>
-                            <th scope="col" class="px-3 py-3 text-center text-xs font-bold text-indigo-400 uppercase tracking-wider">
-                                Paid
-                            </th>
-                            <th scope="col" class="px-3 py-3 text-center text-xs font-bold text-indigo-400 uppercase tracking-wider">
-                                Actions
-                            </th>
+                            <th scope="col" class="px-3 py-3 text-left text-xs font-bold text-indigo-300 uppercase tracking-wider">Name</th>
+                            <th scope="col" class="px-3 py-3 text-left text-xs font-bold text-indigo-300 uppercase tracking-wider hidden sm:table-cell">Class</th>
+                            <th scope="col" class="px-3 py-3 text-center text-xs font-bold text-indigo-300 uppercase tracking-wider">Status</th>
+                            <th scope="col" class="px-3 py-3 text-center text-xs font-bold text-indigo-300 uppercase tracking-wider">Actions</th>
                         </tr>
                     </thead>
-                    <tbody id="students-list-body" class="bg-gray-800 divide-y divide-gray-700">
-                        <!-- Student rows will be injected here -->
-                        <tr id="loading-row"><td colspan="5" class="text-center py-4 text-gray-500">Loading students...</td></tr>
+                    <tbody id="students-list-body" class="bg-slate-800 divide-y divide-slate-700">
+                        <tr id="loading-row"><td colspan="4" class="text-center py-4 text-gray-500">Loading students...</td></tr>
                     </tbody>
                 </table>
             </div>
 
-            <p id="no-students-message" class="text-center text-gray-500 p-4 hidden">No students added yet. Use the form above!</p>
+            <p id="no-students-message" class="text-center text-gray-500 p-4 hidden">
+                No students added yet. Click "Add Student" to start!
+            </p>
         </section>
 
     </div>
 
-    <!-- 1. Custom Modal for General Messages/Alerts (Dark Look) -->
-    <div id="custom-modal" class="fixed inset-0 bg-gray-900 bg-opacity-75 hidden items-center justify-center p-4 z-50 transition-opacity duration-300">
-        <div class="bg-gray-800 p-8 rounded-2xl shadow-2xl max-w-sm w-full transform transition-all duration-300 scale-95 border-t-4 border-indigo-500">
-            <h3 id="modal-title" class="text-2xl font-bold text-gray-200 mb-3">Message</h3>
-            <p id="modal-content" class="text-gray-400 mb-6"></p>
-            <div class="flex justify-end space-x-3">
-                <button id="modal-close-btn" class="px-4 py-2 bg-indigo-600 text-white font-semibold rounded-lg hover:bg-indigo-700 transition duration-150 shadow-md">Close</button>
-            </div>
-        </div>
-    </div>
-    
-    <!-- 2. Add Student Modal (Light Card inside Dark Overlay) -->
-    <div id="add-student-modal" class="fixed inset-0 bg-gray-900 bg-opacity-75 hidden items-center justify-center p-4 z-50 transition-opacity duration-300">
-        <div class="bg-gray-100 p-8 rounded-2xl shadow-2xl max-w-lg w-full transform transition-all duration-300 scale-95">
-            <h3 class="text-2xl font-extrabold text-gray-900 mb-6 border-b pb-3 border-gray-300">Add New Student</h3>
+    <!-- 1. Add Student Modal -->
+    <div id="add-student-modal" class="fixed inset-0 bg-slate-900 bg-opacity-75 hidden items-center justify-center p-4 z-50">
+        <div class="bg-slate-700 p-6 rounded-xl shadow-2xl max-w-sm w-full transform scale-100 border-t-4 border-indigo-500">
+            <h3 class="text-2xl font-extrabold text-gray-100 mb-5 border-b pb-3 border-slate-600">Add New Student</h3>
             
-            <form id="modal-add-student-form" class="space-y-5">
+            <form id="modal-add-student-form" class="space-y-4">
                 <div>
-                    <label for="modal-student-name" class="block text-sm font-semibold text-gray-700 mb-2">Student Name</label>
-                    <input type="text" id="modal-student-name" required placeholder="Ex: Sophia Clark" class="w-full p-3 border border-gray-300 rounded-lg focus:ring-indigo-500 focus:border-indigo-500 transition duration-150 shadow-sm text-gray-800">
+                    <label for="modal-student-name" class="block text-sm font-semibold text-gray-300 mb-2">Student Name</label>
+                    <input type="text" id="modal-student-name" required placeholder="Ex: Kavindu Perera" class="w-full p-3 border border-slate-600 rounded-lg focus:ring-indigo-500 focus:border-indigo-500 transition duration-150 shadow-inner text-gray-900 bg-slate-200">
                 </div>
                 
                 <div>
-                    <label for="modal-class-name" class="block text-sm font-semibold text-gray-700 mb-2">Class (Required)</label>
-                    <input type="text" id="modal-class-name" required placeholder="Ex: Advanced Math 2025" class="w-full p-3 border border-gray-300 rounded-lg focus:ring-indigo-500 focus:border-indigo-500 transition duration-150 shadow-sm text-gray-800">
+                    <label for="modal-class-name" class="block text-sm font-semibold text-gray-300 mb-2">Class (Optional)</label>
+                    <input type="text" id="modal-class-name" placeholder="Ex: O/L Science 2025" class="w-full p-3 border border-slate-600 rounded-lg focus:ring-indigo-500 focus:border-indigo-500 transition duration-150 shadow-inner text-gray-900 bg-slate-200">
                 </div>
 
                 <div>
-                    <label for="modal-phone-number" class="block text-sm font-semibold text-gray-700 mb-2">Phone Number (with country code, e.g., 9477...)</label>
-                    <input type="text" id="modal-phone-number" required placeholder="Ex: 94750882164" class="w-full p-3 border border-gray-300 rounded-lg focus:ring-indigo-500 focus:border-indigo-500 transition duration-150 shadow-sm text-gray-800">
-                    <p class="text-xs text-gray-500 mt-1">Include the country code (e.g., 94) without the '+' or leading '0'.</p>
+                    <label for="modal-phone-number" class="block text-sm font-semibold text-gray-300 mb-2">Phone Number (Required for WhatsApp)</label>
+                    <input type="tel" id="modal-phone-number" required placeholder="Ex: 94750882164" class="w-full p-3 border border-slate-600 rounded-lg focus:ring-indigo-500 focus:border-indigo-500 transition duration-150 shadow-inner text-gray-900 bg-slate-200">
+                    <p class="text-xs text-gray-400 mt-1">Start with the country code (e.g., 94 for Sri Lanka) without '+' or '0'.</p>
                 </div>
 
                 <div class="flex justify-end space-x-3 pt-4">
-                    <button type="button" id="modal-cancel-btn" class="px-5 py-2 bg-gray-300 text-gray-800 font-semibold rounded-lg hover:bg-gray-400 transition duration-150 shadow-md">
+                    <button type="button" id="modal-cancel-btn" class="px-5 py-2 bg-slate-600 text-gray-100 font-semibold rounded-lg hover:bg-slate-500 transition duration-150 shadow-md">
                         Cancel
                     </button>
                     <button type="submit" class="px-5 py-2 bg-indigo-600 text-white font-bold rounded-lg hover:bg-indigo-700 transition duration-150 shadow-lg">
@@ -191,88 +167,51 @@
         </div>
     </div>
 
-    <!-- 3. Payment History Modal (Dark Look for consistency) -->
-    <div id="payment-history-modal" class="fixed inset-0 bg-gray-900 bg-opacity-75 hidden items-center justify-center p-4 z-50 transition-opacity duration-300">
-        <div class="bg-gray-800 p-8 rounded-2xl shadow-2xl max-w-lg w-full transform transition-all duration-300 scale-95 border-t-4 border-indigo-500">
-            <h3 class="text-2xl font-bold text-gray-200 mb-4 border-b border-gray-700 pb-2">
-                Payment History for <span id="history-student-name" class="text-indigo-400"></span>
-            </h3>
-            
-            <div class="overflow-y-auto max-h-96 custom-scroll">
-                <table class="min-w-full divide-y divide-gray-700">
-                    <thead class="bg-gray-700 sticky top-0">
-                        <tr>
-                            <th class="px-4 py-2 text-left text-xs font-bold text-indigo-400 uppercase tracking-wider">Month</th>
-                            <th class="px-4 py-2 text-center text-xs font-bold text-indigo-400 uppercase tracking-wider">Status</th>
-                            <th class="px-4 py-2 text-left text-xs font-bold text-indigo-400 uppercase tracking-wider hidden sm:table-cell">Date Updated</th>
-                        </tr>
-                    </thead>
-                    <tbody id="history-table-body" class="divide-y divide-gray-700">
-                        <!-- History rows will be injected here -->
-                    </tbody>
-                </table>
-            </div>
-
-            <p id="no-history-message" class="text-center text-gray-500 p-4 hidden">No payment history found for this student.</p>
-
-            <div class="flex justify-end space-x-3 pt-6">
-                <button id="history-modal-close-btn" class="px-4 py-2 bg-indigo-600 text-white font-semibold rounded-lg hover:bg-indigo-700 transition duration-150 shadow-md">Close</button>
+    <!-- 2. Custom Alert Modal -->
+    <div id="custom-modal" class="fixed inset-0 bg-slate-900 bg-opacity-75 hidden items-center justify-center p-4 z-50">
+        <div class="bg-slate-800 p-6 rounded-xl shadow-2xl max-w-xs w-full border-t-4 border-indigo-500">
+            <h3 id="modal-title" class="text-xl font-bold text-gray-200 mb-3">Message</h3>
+            <p id="modal-content" class="text-gray-400 mb-6 text-sm"></p>
+            <div class="flex justify-end">
+                <button id="modal-close-btn" class="px-4 py-2 bg-indigo-600 text-white font-semibold rounded-lg hover:bg-indigo-700 transition duration-150 shadow-md text-sm">OK</button>
             </div>
         </div>
     </div>
 
-
-    <!-- Firebase Core and Services Imports -->
-    <script type="module">
-        // Global variables provided by the environment
-        const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
-        const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : null;
-        const initialAuthToken = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : null;
-
-        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
-        import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
-        import { getFirestore, doc, addDoc, setDoc, deleteDoc, onSnapshot, collection, query, updateDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
-        import { setLogLevel } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
-
-        // Firebase Instances
-        let app, db, auth;
-        let userId = null;
-        let isAuthReady = false;
-        let currentTrackingMonth = ''; // YYYY-MM format
-
-        // Configuration
+    <script>
+        // --- Configuration (Update these details!) ---
         const FEE_AMOUNT = "LKR.1200";
-        const INSTITUTE_NAME = "[Nena Piyasa Higher Education Education Institute]";
-        const WHATSAPP_NUMBER = "94750882164"; 
+        const INSTITUTE_NAME = "Nena Piyasa Higher Education Institute";
+        
+        // This is the number provided by the teacher (used for contact info in the message)
+        const TEACHER_PHONE_NUMBER_FULL = "94750882164"; 
+        
+        // Database key for localStorage
+        const STORAGE_KEY = 'nenaPiyasaFeeTrackerStudents';
 
         // UI Elements
-        const authStatusEl = document.getElementById('auth-status');
         const studentsListBody = document.getElementById('students-list-body');
         const sendRemindersBtn = document.getElementById('send-reminders-btn');
         const pendingCountEl = document.getElementById('pending-count');
-        const listPendingCountEl = document.getElementById('list-pending-count');
+        const totalStudentsCountEl = document.getElementById('total-students-count');
         const loadingRowEl = document.getElementById('loading-row');
         const noStudentsMessageEl = document.getElementById('no-students-message');
         
-        // Modal UI Elements
         const openAddModalBtn = document.getElementById('open-add-modal-btn');
         const addStudentModal = document.getElementById('add-student-modal');
         const modalCancelBtn = document.getElementById('modal-cancel-btn');
         const modalAddStudentForm = document.getElementById('modal-add-student-form');
         
-        // NEW UI Elements for Monthly/Data Management
         const monthSelector = document.getElementById('month-selector');
-        const advanceMonthBtn = document.getElementById('advance-month-btn');
+        
+        // Data Management Buttons
         const exportCsvBtn = document.getElementById('export-csv-btn');
         const importCsvInput = document.getElementById('import-csv-input');
-        
-        // NEW UI Elements for History Modal
-        const paymentHistoryModal = document.getElementById('payment-history-modal');
-        const historyStudentNameEl = document.getElementById('history-student-name');
-        const historyTableBodyEl = document.getElementById('history-table-body');
-        const historyModalCloseBtn = document.getElementById('history-modal-close-btn');
-        const noHistoryMessageEl = document.getElementById('no-history-message');
+        const clonePendingBtn = document.getElementById('clone-pending-btn');
 
+        // Local State
+        let students = [];
+        let currentTrackingMonth = ''; 
 
         // --- Utility Functions: Date/Month ---
 
@@ -285,56 +224,54 @@
         
         /** Converts YYYY-MM to a readable month string (e.g., October 2025) */
         function formatMonthKey(monthKey) {
-            const [year, month] = monthKey.split('-');
+            if (!monthKey) return 'N/A';
+            const [year, month] = monthKey.split('-').map(Number);
+            // Month is 1-indexed for the string, but 0-indexed for the Date object
             const date = new Date(year, month - 1);
             return date.toLocaleDateString('en-US', { year: 'numeric', month: 'long' });
         }
         
-        /** Converts timestamp to a readable date string */
-        function formatTimestamp(timestamp) {
-            if (!timestamp) return 'N/A';
-            const date = new Date(timestamp);
-            return date.toLocaleDateString('en-US', { 
-                year: 'numeric', 
-                month: 'short', 
-                day: 'numeric', 
-                hour: '2-digit', 
-                minute: '2-digit' 
-            });
-        }
-
-        /** Generates array of last 12 months for selector */
+        /** Generates array of last 6 months for selector */
         function generateMonthOptions() {
-            monthSelector.innerHTML = '';
             const today = new Date();
+            monthSelector.innerHTML = '';
             
-            // Generate options for the last 12 months (e.g., current month and 11 previous)
-            for (let i = 0; i < 12; i++) {
+            // Generate options for the last 6 months (current month and 5 previous)
+            for (let i = 0; i < 6; i++) {
                 const date = new Date(today.getFullYear(), today.getMonth() - i, 1);
                 const monthKey = getMonthKey(date);
                 const monthLabel = formatMonthKey(monthKey);
                 
                 const option = document.createElement('option');
                 option.value = monthKey;
-                option.textContent = monthLabel;
+                option.textContent = i === 0 ? `${monthLabel} (Current)` : monthLabel;
                 monthSelector.appendChild(option);
             }
+            
+            // Set current month and initial state
+            currentTrackingMonth = monthSelector.value;
+            monthSelector.addEventListener('change', handleMonthChange);
+        }
+
+        /** Handles month selector change */
+        function handleMonthChange(e) {
+            currentTrackingMonth = e.target.value;
+            renderStudents();
         }
         
-        /** Advances the current tracking month by one */
-        function getNextMonthKey(currentKey) {
-            const [year, month] = currentKey.split('-').map(Number);
-            let nextYear = year;
+        /** Calculates the key for the next month */
+        function getNextMonthKey(monthKey) {
+            const [year, month] = monthKey.split('-').map(Number);
             let nextMonth = month + 1;
-
+            let nextYear = year;
             if (nextMonth > 12) {
                 nextMonth = 1;
-                nextYear += 1;
+                nextYear = year + 1;
             }
             return `${nextYear}-${String(nextMonth).padStart(2, '0')}`;
         }
-        
-        // --- Utility Functions: General ---
+
+        // --- Utility Functions: UI & Modal ---
 
         /** Shows a custom modal message (replaces alert/confirm) */
         function showModal(title, content) {
@@ -349,7 +286,6 @@
             };
         }
 
-        /** Controls the display of the Add Student Modal */
         function openAddStudentModal() {
             addStudentModal.classList.remove('hidden');
             addStudentModal.classList.add('flex');
@@ -361,454 +297,498 @@
             addStudentModal.classList.add('hidden');
             addStudentModal.classList.remove('flex');
         }
-        
-        /** Controls the display of the Payment History Modal */
-        function closePaymentHistoryModal() {
-            paymentHistoryModal.classList.add('hidden');
-            paymentHistoryModal.classList.remove('flex');
+
+        // --- Data Persistence (localStorage) ---
+
+        /** Loads students from localStorage */
+        function loadStudents() {
+            const storedData = localStorage.getItem(STORAGE_KEY);
+            try {
+                students = storedData ? JSON.parse(storedData) : [];
+                // Sort students alphabetically by name for consistent display
+                students.sort((a, b) => a.name.localeCompare(b.name));
+            } catch (e) {
+                console.error("Error parsing stored data:", e);
+                students = [];
+            }
+            renderStudents();
         }
 
-        /** Formats the message for WhatsApp deep link */
-        function createWhatsAppMessage(name) {
-            let message = `Hello ${name}, This is to notify you that your payment of ${FEE_AMOUNT} for ${formatMonthKey(currentTrackingMonth)} is pending. Please make it clear as soon as possible. Regards - ${INSTITUTE_NAME}`;
+        /** Saves students to localStorage */
+        function saveStudents() {
+            localStorage.setItem(STORAGE_KEY, JSON.stringify(students));
+        }
+
+        // --- Core Application Logic ---
+
+        /** Generates the WhatsApp message content */
+        function createWhatsAppMessage(studentName, monthKey) {
+            const monthLabel = formatMonthKey(monthKey);
+            let message = `Hello ${studentName}, \n\nThis is to notify you that your payment of ${FEE_AMOUNT} for ${monthLabel} is pending. Please make it clear as soon as possible. \n\nRegards, \n${INSTITUTE_NAME} (Contact: +${TEACHER_PHONE_NUMBER_FULL})`;
             return encodeURIComponent(message);
         }
 
-        // --- Firebase Initialization and Auth ---
+        /** Adds a new student */
+        function handleAddStudent(event) {
+            event.preventDefault();
+            
+            const name = document.getElementById('modal-student-name').value.trim();
+            const className = document.getElementById('modal-class-name').value.trim() || 'N/A';
+            const phone = document.getElementById('modal-phone-number').value.trim();
 
-        /** Initializes Firebase and sets up authentication */
-        async function initFirebase() {
-            setLogLevel('debug');
-            if (!firebaseConfig) {
-                authStatusEl.textContent = "Error: Firebase config is missing.";
+            if (!name || !phone) {
+                return showModal("Input Error", "Student Name and Phone Number are required.");
+            }
+            
+            // Check for duplicate phone number
+            if (students.some(s => s.phoneNumber === phone)) {
+                return showModal("Duplicate Entry", `A student with the phone number ${phone} already exists.`);
+            }
+
+            const newStudent = {
+                id: crypto.randomUUID(),
+                name: name,
+                className: className,
+                phoneNumber: phone,
+                // Initialize payments for the current month as pending
+                payments: {
+                    [currentTrackingMonth]: { paid: false, date: new Date().getTime() }
+                },
+                createdAt: new Date().getTime()
+            };
+
+            students.push(newStudent);
+            saveStudents();
+            renderStudents();
+            closeAddStudentModal();
+        }
+
+        /** Toggles payment status for a specific student and month */
+        function togglePaymentStatus(studentId) {
+            const student = students.find(s => s.id === studentId);
+            if (!student) return;
+
+            // Ensure the payment object exists for the current month
+            if (!student.payments[currentTrackingMonth]) {
+                student.payments[currentTrackingMonth] = { paid: false };
+            }
+
+            const currentStatus = student.payments[currentTrackingMonth].paid;
+            
+            student.payments[currentTrackingMonth].paid = !currentStatus;
+            // Only update the date if marking as paid
+            if (!currentStatus) {
+                student.payments[currentTrackingMonth].date = new Date().getTime();
+            } else {
+                delete student.payments[currentTrackingMonth].date; // Remove date when marking unpaid
+            }
+
+            saveStudents();
+            renderStudents();
+        }
+        
+        /** Deletes a student */
+        function handleDeleteStudent(studentId, studentName) {
+            // Use window.confirm for simplicity, although custom modal is preferred for non-blocking UI
+            if (window.confirm(`Are you sure you want to permanently delete student: ${studentName}? This action cannot be undone.`)) {
+                students = students.filter(s => s.id !== studentId);
+                saveStudents();
+                renderStudents();
+                showModal("Deleted", `${studentName} has been removed.`);
+            }
+        }
+        
+        /** Clones pending students to the next month */
+        function handleClonePending() {
+            const currentMonthLabel = formatMonthKey(currentTrackingMonth);
+            const nextMonthKey = getNextMonthKey(currentTrackingMonth);
+            const nextMonthLabel = formatMonthKey(nextMonthKey);
+            
+            if (!window.confirm(`Are you sure you want to clone ALL PENDING students from ${currentMonthLabel} to the next tracking month (${nextMonthLabel})? This will set their payment status for ${nextMonthLabel} to PENDING.`)) {
                 return;
             }
             
-            // 1. Initialize Month Selector and State
-            generateMonthOptions();
-            currentTrackingMonth = monthSelector.value = getMonthKey(new Date());
-
-            try {
-                app = initializeApp(firebaseConfig);
-                db = getFirestore(app);
-                auth = getAuth(app);
-
-                authStatusEl.textContent = "Authenticating...";
-
-                if (initialAuthToken) {
-                    await signInWithCustomToken(auth, initialAuthToken);
-                } else {
-                    await signInAnonymously(auth);
-                }
-
-                onAuthStateChanged(auth, (user) => {
-                    if (user) {
-                        userId = user.uid;
-                        isAuthReady = true;
-                        authStatusEl.innerHTML = `<span class="font-semibold text-emerald-400">Authenticated</span> | User ID: ${userId.substring(0, 8)}...`;
-                        console.log("User authenticated:", userId);
-                        setupListeners(); 
-                        sendRemindersBtn.disabled = false; 
-                        advanceMonthBtn.disabled = false;
-                        monthSelector.addEventListener('change', handleMonthChange);
-                    } else {
-                        userId = null;
-                        isAuthReady = false;
-                        authStatusEl.textContent = "Authentication failed. Using anonymous mode.";
-                        sendRemindersBtn.disabled = true;
-                        advanceMonthBtn.disabled = true;
-                        monthSelector.removeEventListener('change', handleMonthChange);
-                    }
-                });
-                
-                // Attach close handler for history modal
-                historyModalCloseBtn.addEventListener('click', closePaymentHistoryModal);
-
-            } catch (error) {
-                console.error("Firebase Initialization Error:", error);
-                authStatusEl.textContent = `Authentication Error: ${error.message}`;
-            }
-        }
-
-        // --- CRUD Operations ---
-
-        /** Gets the collection reference for the current user's students */
-        function getStudentsCollectionRef() {
-            if (!db || !userId) return null;
-            return collection(db, `artifacts/${appId}/users/${userId}/students`);
-        }
-
-        /** Adds a new student to Firestore */
-        async function addStudent(name, phoneNumber, className) {
-            const studentsRef = getStudentsCollectionRef();
-            if (!studentsRef) return showModal("Error", "Database not initialized. Please refresh.");
-
-            try {
-                await addDoc(studentsRef, {
-                    name: name,
-                    phoneNumber: phoneNumber,
-                    className: className,
-                    payments: {
-                        [currentTrackingMonth]: { 
-                            paid: false,
-                            date: new Date().getTime()
-                        }
-                    },
-                    createdAt: new Date().getTime()
-                });
-            } catch (error) {
-                console.error("Error adding document: ", error);
-                showModal("Error", "Failed to add student. Check console for details.");
-            }
-        }
-
-        /** Toggles the payment status (paid/unpaid) for the current month */
-        async function togglePaymentStatus(studentId, currentStatus) {
-            const studentsRef = getStudentsCollectionRef();
-            if (!studentsRef) return showModal("Error", "Database not initialized. Please refresh.");
-
-            try {
-                const studentDocRef = doc(db, studentsRef.path, studentId);
-                const statusKey = `payments.${currentTrackingMonth}.paid`;
-                const dateKey = `payments.${currentTrackingMonth}.date`;
-
-                await updateDoc(studentDocRef, {
-                    [statusKey]: !currentStatus,
-                    [dateKey]: new Date().getTime()
-                });
-            } catch (error) {
-                console.error("Error updating payment status: ", error);
-                showModal("Error", "Failed to update payment status.");
-            }
-        }
-
-        /** Deletes a student document */
-        async function deleteStudent(studentId) {
-            const studentsRef = getStudentsCollectionRef();
-            if (!studentsRef) return showModal("Error", "Database not initialized. Please refresh.");
-            try {
-                const studentDocRef = doc(db, studentsRef.path, studentId);
-                await deleteDoc(studentDocRef);
-            } catch (error) {
-                console.error("Error deleting student: ", error);
-                showModal("Error", "Failed to delete student.");
-            }
-        }
-        
-        /** Shows the payment history modal for a selected student */
-        function showPaymentHistory(studentId) {
-            const student = cachedStudents.find(s => s.id === studentId);
-            if (!student) return showModal("Error", "Student data not found.");
-
-            historyStudentNameEl.textContent = student.name;
-            historyTableBodyEl.innerHTML = '';
+            let clonedCount = 0;
             
-            const payments = student.payments || {};
-            const monthKeys = Object.keys(payments).sort().reverse(); // Show newest months first
-
-            if (monthKeys.length === 0) {
-                noHistoryMessageEl.classList.remove('hidden');
-            } else {
-                noHistoryMessageEl.classList.add('hidden');
+            students.forEach(student => {
+                const isPending = !student.payments[currentTrackingMonth] || student.payments[currentTrackingMonth].paid === false;
                 
-                monthKeys.forEach(monthKey => {
-                    const payment = payments[monthKey];
-                    const isPaid = payment.paid || false;
-                    const dateUpdated = payment.date;
-                    
-                    const statusClass = isPaid
-                        ? 'bg-teal-500 text-white'
-                        : 'bg-yellow-500 text-gray-900';
-                    
-                    const row = document.createElement('tr');
-                    row.className = 'hover:bg-gray-700/50 transition duration-150 border-b border-gray-700';
-                    row.innerHTML = `
-                        <td class="px-4 py-3 whitespace-nowrap text-sm font-medium text-gray-100">${formatMonthKey(monthKey)}</td>
-                        <td class="px-4 py-3 whitespace-nowrap text-center text-sm">
-                            <span class="px-3 py-1 rounded-full text-xs font-semibold ${statusClass}">
-                                ${isPaid ? 'PAID' : 'PENDING'}
-                            </span>
-                        </td>
-                        <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-400 hidden sm:table-cell">
-                            ${formatTimestamp(dateUpdated)}
-                        </td>
-                    `;
-                    historyTableBodyEl.appendChild(row);
-                });
-            }
+                if (isPending) {
+                    // Check if the next month status is already set. If so, don't overwrite.
+                    if (!student.payments[nextMonthKey] || student.payments[nextMonthKey].paid !== true) {
+                        student.payments[nextMonthKey] = { paid: false, date: new Date().getTime() }; // Use current time as creation time for the new record
+                        clonedCount++;
+                    }
+                }
+            });
+            
+            if (clonedCount > 0) {
+                saveStudents();
+                // After cloning, update the month selector to show the next month
+                generateMonthOptions(); 
+                // We need to re-select the month to make sure the view is updated
+                const nextMonthOption = monthSelector.querySelector(`option[value="${nextMonthKey}"]`);
+                if(nextMonthOption) {
+                    monthSelector.value = nextMonthKey;
+                    currentTrackingMonth = nextMonthKey;
+                }
+                renderStudents();
 
-            paymentHistoryModal.classList.remove('hidden');
-            paymentHistoryModal.classList.add('flex');
+                showModal("Cloning Complete", `Successfully set ${clonedCount} pending students' status to PENDING for ${nextMonthLabel}. The view has been switched to ${nextMonthLabel}.`);
+            } else {
+                showModal("Cloning Not Necessary", `No pending students found for ${currentMonthLabel} or their next month status was already set.`);
+            }
         }
-
-
-        // --- Data Management (Import/Export) ---
         
-        /** Converts students list to CSV format and downloads it */
-        function handleExportCSV(students) {
+        // --- CSV Import/Export Logic ---
+        
+        /** Exports all student data to a CSV file */
+        function exportStudentsToCsv() {
             if (students.length === 0) {
-                return showModal("Export Failed", "No students available to export.");
+                return showModal("Export Error", "No student data to export.");
             }
 
-            const header = ['Name', 'Class', 'Phone', `Paid_Status_${currentTrackingMonth}`];
-            const rows = students.map(student => {
-                const isPaid = student.payments?.[currentTrackingMonth]?.paid || false;
-                return [
-                    student.name,
-                    student.className || '',
-                    student.phoneNumber,
-                    isPaid ? 'PAID' : 'PENDING'
-                ].map(item => `"${item.toString().replace(/"/g, '""')}"`).join(',');
+            // Define the headers and mapping keys
+            const headers = ["ID", "Name", "Class", "Phone Number", "Created At"];
+            const studentKeys = ["id", "name", "className", "phoneNumber", "createdAt"];
+            
+            // Collect all unique payment month keys
+            const allMonthKeys = new Set();
+            students.forEach(student => {
+                Object.keys(student.payments).forEach(monthKey => allMonthKeys.add(monthKey));
+            });
+            const sortedMonthKeys = Array.from(allMonthKeys).sort((a, b) => b.localeCompare(a)); // Sort descending by year-month
+            
+            // Add month headers (e.g., "2023-10 Status", "2023-10 Date")
+            sortedMonthKeys.forEach(monthKey => {
+                headers.push(`${monthKey} Status`);
+                headers.push(`${monthKey} Date`);
             });
 
-            const csvContent = [header.join(','), ...rows].join('\n');
-            const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-            const link = document.createElement('a');
+            // Escape function for CSV values
+            const escapeCsv = (value) => {
+                if (value === null || value === undefined) return "";
+                let str = String(value);
+                // If the string contains comma, double quote, or newline, wrap it in double quotes and escape internal double quotes
+                if (str.includes(',') || str.includes('"') || str.includes('\n')) {
+                    return `"${str.replace(/"/g, '""')}"`;
+                }
+                return str;
+            };
+
+            // Convert data to CSV rows
+            const csvRows = [headers.map(escapeCsv).join(',')]; // Header row
+
+            students.forEach(student => {
+                const row = studentKeys.map(key => {
+                    const value = student[key];
+                    if (key === 'createdAt') return value ? new Date(value).toISOString() : '';
+                    return escapeCsv(value);
+                });
+
+                // Add payment data for each month
+                sortedMonthKeys.forEach(monthKey => {
+                    const payment = student.payments[monthKey];
+                    const status = payment && payment.paid ? 'PAID' : 'PENDING';
+                    const date = (payment && payment.paid && payment.date) ? new Date(payment.date).toLocaleDateString() : '';
+                    row.push(escapeCsv(status));
+                    row.push(escapeCsv(date));
+                });
+
+                csvRows.push(row.join(','));
+            });
+
+            const csvString = csvRows.join('\n');
+            const blob = new Blob([csvString], { type: 'text/csv;charset=utf-8;' });
+            const url = URL.createObjectURL(blob);
             
-            link.href = URL.createObjectURL(blob);
-            link.setAttribute('download', `nena_piyasa_students_${currentTrackingMonth}.csv`);
+            const link = document.createElement('a');
+            link.setAttribute('href', url);
+            link.setAttribute('download', `nena_piyasa_students_export_${getMonthKey(new Date())}.csv`);
+            link.style.visibility = 'hidden';
             document.body.appendChild(link);
             link.click();
             document.body.removeChild(link);
-            showModal("Export Successful", `The student list for ${currentTrackingMonth} has been exported to a CSV file.`);
+            
+            showModal("Export Successful", "Student data exported successfully as a CSV file.");
         }
-
-        /** Handles CSV file reading and bulk student import */
-        function handleImportCSV(e) {
-            const file = e.target.files[0];
+        
+        /** Imports student data from a CSV file */
+        function importStudentsFromCsv(event) {
+            const file = event.target.files[0];
             if (!file) return;
 
+            if (!window.confirm("Importing CSV data will OVERWRITE all existing student data in your browser. Are you sure you want to proceed?")) {
+                importCsvInput.value = ''; // Reset file input
+                return;
+            }
+
             const reader = new FileReader();
-            reader.onload = async (event) => {
-                const csvText = event.target.result;
-                const lines = csvText.split('\n').filter(line => line.trim() !== '');
-                if (lines.length < 2) {
-                    return showModal("Import Error", "CSV file is empty or malformed.");
-                }
-
-                const header = lines[0].toLowerCase().replace(/\s/g, '').split(',').map(h => h.replace(/"/g, '').trim());
-                const nameIndex = header.findIndex(h => h.includes('name'));
-                const phoneIndex = header.findIndex(h => h.includes('phone'));
-                const classIndex = header.findIndex(h => h.includes('class'));
-
-                if (nameIndex === -1 || phoneIndex === -1) {
-                    return showModal("Import Error", "CSV must contain columns named 'Name' and 'Phone'.");
-                }
-
-                let importCount = 0;
-                for (let i = 1; i < lines.length; i++) {
-                    const values = lines[i].split(',').map(v => v.replace(/"/g, '').trim());
-                    
-                    const name = values[nameIndex];
-                    const phone = values[phoneIndex].replace(/[^0-9]/g, '');
-                    const className = classIndex !== -1 && values[classIndex] ? values[classIndex] : 'General';
-
-                    if (name && phone.length >= 8) {
-                        await addStudent(name, phone, className);
-                        importCount++;
+            reader.onload = function(e) {
+                const csvText = e.target.result;
+                try {
+                    const newStudents = parseCsv(csvText);
+                    if (newStudents.length > 0) {
+                        students = newStudents;
+                        saveStudents();
+                        renderStudents();
+                        showModal("Import Successful", `Successfully imported ${newStudents.length} students. All previous data was overwritten.`);
+                    } else {
+                        showModal("Import Failed", "The CSV file was empty or could not be parsed correctly. Please check the format.");
                     }
+                } catch (error) {
+                    console.error("CSV Import Error:", error);
+                    showModal("Import Error", `Failed to process CSV file. Make sure it matches the exported format. Error: ${error.message}`);
+                } finally {
+                    importCsvInput.value = ''; // Reset file input
                 }
-                showModal("Import Complete", `${importCount} new students successfully added from the CSV file.`);
-                document.getElementById('import-label').textContent = 'Import CSV';
-                importCsvInput.value = '';
             };
-
-            reader.onerror = () => showModal("Import Error", "Failed to read file.");
             reader.readAsText(file);
         }
 
-        /** Advances the tracking month and resets status for the new month */
-        function handleAdvanceMonth() {
-            const nextMonthKey = getNextMonthKey(currentTrackingMonth);
+        /** Parses the CSV text back into the student data structure */
+        function parseCsv(csvText) {
+            // Very simple CSV parser, assuming comma delimiter and standard escaping
+            const lines = csvText.trim().split('\n');
+            if (lines.length < 2) return [];
+
+            // Helper to split a CSV line while respecting quoted commas
+            const splitCsvLine = (line) => {
+                const result = [];
+                let current = '';
+                let inQuote = false;
+                for (let i = 0; i < line.length; i++) {
+                    const char = line[i];
+                    if (char === '"') {
+                        // Handle escaped quote ("") or start/end quote
+                        if (i + 1 < line.length && line[i + 1] === '"' && inQuote) {
+                            current += '"';
+                            i++; // Skip next quote
+                        } else {
+                            inQuote = !inQuote;
+                        }
+                    } else if (char === ',' && !inQuote) {
+                        result.push(current.trim());
+                        current = '';
+                    } else {
+                        current += char;
+                    }
+                }
+                result.push(current.trim());
+                return result.map(v => v.replace(/^"|"$/g, '')); // Remove outer quotes if present
+            };
+
+            const headers = splitCsvLine(lines[0]);
+            const dataLines = lines.slice(1);
+            const studentBaseKeys = ["ID", "Name", "Class", "Phone Number", "Created At"];
+            const monthHeaderIndices = {};
             
-            showModal(
-                "Confirm Month Advance",
-                `Are you sure you want to close tracking for ${formatMonthKey(currentTrackingMonth)} and advance to ${formatMonthKey(nextMonthKey)}? All students will be marked as PENDING for the new month automatically.`
-            );
-            
-            // Advance the month in the selector and trigger change event
-            currentTrackingMonth = nextMonthKey;
-            
-            generateMonthOptions(); 
-            monthSelector.value = nextMonthKey;
-            
-            // Manually trigger the list re-render
-            handleMonthChange();
-            
-            showModal(
-                "Month Advanced", 
-                `The fee tracker has been successfully advanced to **${formatMonthKey(nextMonthKey)}**. All students are now automatically set to PENDING for this new month.`
-            );
+            // Map payment headers to their indices
+            headers.forEach((header, index) => {
+                if (header.endsWith(' Status')) {
+                    const monthKey = header.replace(' Status', '');
+                    if (headers[index + 1] === `${monthKey} Date`) {
+                        monthHeaderIndices[monthKey] = { 
+                            statusIndex: index,
+                            dateIndex: index + 1
+                        };
+                    }
+                }
+            });
+
+            return dataLines.map(line => {
+                const values = splitCsvLine(line);
+                if (values.length < studentBaseKeys.length) return null; // Skip invalid lines
+
+                const getVal = (key) => {
+                    const index = headers.indexOf(key);
+                    return index > -1 ? values[index] : '';
+                };
+                
+                const student = {
+                    id: getVal("ID") || crypto.randomUUID(),
+                    name: getVal("Name"),
+                    className: getVal("Class"),
+                    phoneNumber: getVal("Phone Number"),
+                    createdAt: getVal("Created At") ? new Date(getVal("Created At")).getTime() : new Date().getTime(),
+                    payments: {}
+                };
+
+                // Populate payment history
+                Object.keys(monthHeaderIndices).forEach(monthKey => {
+                    const indices = monthHeaderIndices[monthKey];
+                    const status = values[indices.statusIndex];
+                    const dateString = values[indices.dateIndex];
+
+                    if (status) {
+                        const isPaid = status.toUpperCase() === 'PAID';
+                        student.payments[monthKey] = { paid: isPaid };
+                        
+                        if (isPaid && dateString) {
+                            const dateTimestamp = new Date(dateString).getTime();
+                            if (!isNaN(dateTimestamp)) {
+                                student.payments[monthKey].date = dateTimestamp;
+                            }
+                        }
+                    }
+                });
+
+                return student;
+            }).filter(s => s !== null && s.name && s.phoneNumber); // Ensure name and phone are present
         }
 
-
-        // --- UI Rendering and Event Handlers ---
-        
-        /** Handles change in the month selector */
-        function handleMonthChange() {
-            currentTrackingMonth = monthSelector.value;
-            // Force a re-render of the list using the last known data
-            if (typeof cachedStudents !== 'undefined') {
-                 renderStudentsList(cachedStudents);
-            }
-        }
-
-
-        let cachedStudents = []; // Local cache to allow fast month switching without re-fetching
-
-        /** Renders the list of students using the real-time data */
-        function renderStudentsList(students) {
-            cachedStudents = students; // Cache the latest data
+        /** Renders the student list table */
+        function renderStudents() {
+            loadingRowEl.classList.add('hidden');
             studentsListBody.innerHTML = '';
-            if(loadingRowEl) loadingRowEl.remove();
             
-            let pendingStudents = [];
-            const selectedMonth = currentTrackingMonth;
-
             if (students.length === 0) {
                 noStudentsMessageEl.classList.remove('hidden');
+                totalStudentsCountEl.textContent = '0';
+                pendingCountEl.textContent = '0';
                 sendRemindersBtn.disabled = true;
-            } else {
-                noStudentsMessageEl.classList.add('hidden');
-                students.sort((a, b) => a.name.localeCompare(b.name));
-
-                students.forEach(student => {
-                    const isPaid = student.payments?.[selectedMonth]?.paid || false;
-
-                    if (!isPaid) {
-                        pendingStudents.push(student);
-                    }
-                    
-                    const statusClass = isPaid
-                        ? 'bg-teal-500 text-white hover:bg-teal-600'
-                        : 'bg-yellow-500 text-gray-900 hover:bg-yellow-400';
-
-                    const row = document.createElement('tr');
-                    row.className = 'hover:bg-gray-700/50 transition duration-150 border-b border-gray-700';
-                    row.innerHTML = `
-                        <td class="px-3 py-4 whitespace-nowrap text-sm font-medium text-gray-100">
-                            ${student.name}
-                        </td>
-                        <td class="px-3 py-4 whitespace-nowrap text-sm text-gray-400 hidden sm:table-cell">
-                            ${student.className || '-'}
-                        </td>
-                        <td class="px-3 py-4 whitespace-nowrap text-sm text-gray-400 hidden sm:table-cell">
-                            +${student.phoneNumber}
-                        </td>
-                        <td class="px-3 py-4 whitespace-nowrap text-center text-sm">
-                            <button data-id="${student.id}" data-paid="${isPaid}" class="toggle-paid-btn px-3 py-1 rounded-full text-xs font-semibold shadow-md transition duration-150 transform hover:scale-105 ${statusClass}">
-                                ${isPaid ? 'Paid' : 'Pending'}
-                            </button>
-                        </td>
-                        <td class="px-3 py-4 whitespace-nowrap text-center text-sm font-medium flex justify-center space-x-2">
-                            <button data-id="${student.id}" class="view-history-btn text-indigo-400 hover:text-indigo-500 p-2 rounded-full hover:bg-gray-700 transition duration-150" title="View History">
-                                <!-- History Icon -->
-                                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                                    <polyline points="12 8 12 12 14 10"></polyline>
-                                    <path d="M12 2a10 10 0 1 0 10 10A10 10 0 0 0 12 2Z"></path>
-                                </svg>
-                            </button>
-                            <button data-id="${student.id}" class="delete-student-btn text-red-400 hover:text-red-500 p-2 rounded-full hover:bg-gray-700 transition duration-150" title="Delete Student">
-                                <!-- Trash Icon -->
-                                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                                    <path d="M3 6h18"></path>
-                                    <path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"></path>
-                                    <path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"></path>
-                                </svg>
-                            </button>
-                        </td>
-                    `;
-                    studentsListBody.appendChild(row);
-                });
-
-                // Update counts and button state
-                pendingCountEl.textContent = pendingStudents.length;
-                listPendingCountEl.textContent = pendingStudents.length;
-                sendRemindersBtn.disabled = pendingStudents.length === 0;
-
-                // Attach event listeners for the dynamically created buttons
-                document.querySelectorAll('.toggle-paid-btn').forEach(button => {
-                    button.addEventListener('click', (e) => {
-                        const id = e.currentTarget.dataset.id;
-                        const paid = e.currentTarget.dataset.paid === 'true';
-                        togglePaymentStatus(id, paid);
-                    });
-                });
-                
-                document.querySelectorAll('.view-history-btn').forEach(button => {
-                    button.addEventListener('click', (e) => {
-                        const id = e.currentTarget.dataset.id;
-                        showPaymentHistory(id);
-                    });
-                });
-
-                document.querySelectorAll('.delete-student-btn').forEach(button => {
-                    button.addEventListener('click', (e) => {
-                        const id = e.currentTarget.dataset.id;
-                        showModal(
-                            "Confirm Deletion", 
-                            "Student will be deleted permanently. Click 'Close' and then delete."
-                        );
-                        deleteStudent(id); 
-                    });
-                });
-
-                sendRemindersBtn.onclick = () => sendWhatsAppReminders(pendingStudents);
+                return;
             }
-        }
 
-        /** Sets up the real-time data listener (onSnapshot) */
-        function setupListeners() {
-            if (!isAuthReady || !db) return;
+            noStudentsMessageEl.classList.add('hidden');
+            let pendingCount = 0;
+            
+            // Note: Students array is pre-sorted in loadStudents()
 
-            const studentsRef = getStudentsCollectionRef();
-            if (!studentsRef) return;
+            students.forEach(student => {
+                // Get payment status for the currently selected month
+                const payment = student.payments[currentTrackingMonth];
+                const isPaid = payment ? payment.paid : false;
 
-            onSnapshot(query(studentsRef), (snapshot) => {
-                const students = [];
-                snapshot.forEach(doc => {
-                    students.push({ id: doc.id, ...doc.data() });
-                });
-                renderStudentsList(students);
-            }, (error) => {
-                console.error("Firestore listen error: ", error);
-                showModal("Data Error", "Failed to load student data. Please check your connection.");
+                if (!isPaid) {
+                    pendingCount++;
+                }
+
+                const statusBg = isPaid ? 'bg-emerald-600' : 'bg-yellow-500';
+                const statusText = isPaid ? 'text-white' : 'text-slate-900';
+                const statusLabel = isPaid ? 'PAID' : 'PENDING';
+
+                const row = document.createElement('tr');
+                row.className = 'hover:bg-slate-700/70 transition duration-150 border-b border-slate-700';
+                
+                row.innerHTML = `
+                    <td class="px-3 py-3 text-sm font-medium text-gray-100 whitespace-nowrap">
+                        ${student.name}
+                        <div class="text-xs text-gray-400 sm:hidden mt-0.5">${student.phoneNumber}</div>
+                    </td>
+                    <td class="px-3 py-3 text-sm text-gray-400 hidden sm:table-cell">${student.className || 'N/A'}</td>
+                    
+                    <td class="px-3 py-3 whitespace-nowrap text-center text-sm">
+                        <span class="px-3 py-1 rounded-full text-xs font-semibold ${statusBg} ${statusText}">
+                            ${statusLabel}
+                        </span>
+                    </td>
+                    
+                    <td class="px-3 py-3 whitespace-nowrap text-right">
+                        <div class="flex flex-wrap gap-2 justify-center">
+                            <button data-id="${student.id}" data-action="toggle" class="p-2 text-sm font-semibold rounded-lg shadow-sm transition-all duration-150 
+                                ${isPaid ? 'bg-red-500 hover:bg-red-600' : 'bg-green-500 hover:bg-green-600'} text-white">
+                                ${isPaid ? 'Mark UNPAID' : 'Mark PAID'}
+                            </button>
+                            <a href="whatsapp://send?phone=${student.phoneNumber}&text=${createWhatsAppMessage(student.name, currentTrackingMonth)}"
+                                target="_blank"
+                                class="p-2 text-sm font-semibold rounded-lg bg-indigo-500 text-white shadow-sm hover:bg-indigo-600 transition-all duration-150 flex items-center justify-center">
+                                Reminder
+                            </a>
+                            <button data-id="${student.id}" data-name="${student.name}" data-action="delete" class="p-2 text-sm font-semibold rounded-lg bg-slate-600 text-white shadow-sm hover:bg-slate-500 transition-all duration-150">
+                                Delete
+                            </button>
+                        </div>
+                    </td>
+                `;
+                studentsListBody.appendChild(row);
+            });
+            
+            // Update summary statistics
+            totalStudentsCountEl.textContent = students.length;
+            pendingCountEl.textContent = pendingCount;
+            sendRemindersBtn.disabled = pendingCount === 0;
+
+            // Attach event listeners to the new buttons
+            studentsListBody.querySelectorAll('button').forEach(button => {
+                const studentId = button.getAttribute('data-id');
+                const action = button.getAttribute('data-action');
+                const name = button.getAttribute('data-name');
+
+                if (action === 'toggle') {
+                    button.addEventListener('click', () => togglePaymentStatus(studentId));
+                } else if (action === 'delete') {
+                    button.addEventListener('click', () => handleDeleteStudent(studentId, name));
+                }
             });
         }
 
-        // --- Main Execution ---
+        /** Handles the bulk send reminders button click */
+        function handleBulkReminders() {
+            const pendingStudents = students.filter(student => {
+                const payment = student.payments[currentTrackingMonth];
+                return !payment || payment.paid === false;
+            }).filter(student => student.phoneNumber); // Ensure phone number exists
 
-        // Handle Modals
-        openAddModalBtn.addEventListener('click', openAddStudentModal);
-        modalCancelBtn.addEventListener('click', closeAddStudentModal);
-        
-        // Handle Data Management
-        exportCsvBtn.addEventListener('click', () => handleExportCSV(cachedStudents));
-        importCsvInput.addEventListener('change', handleImportCSV);
-        advanceMonthBtn.addEventListener('click', handleAdvanceMonth);
-
-
-        // Handle Add Student Form Submission
-        modalAddStudentForm.addEventListener('submit', (e) => {
-            e.preventDefault();
-            const nameInput = document.getElementById('modal-student-name');
-            const phoneInput = document.getElementById('modal-phone-number');
-            const classInput = document.getElementById('modal-class-name');
-
-            const name = nameInput.value.trim();
-            const phone = phoneInput.value.trim().replace(/[^0-9]/g, ''); 
-            const className = classInput.value.trim();
-
-            if (name && phone.length >= 8 && className) { 
-                addStudent(name, phone, className);
-                closeAddStudentModal(); 
-            } else {
-                showModal("Invalid Input", "Please ensure the student name, class, and valid 8+ digit phone number are entered.");
+            if (pendingStudents.length === 0) {
+                return showModal("No Reminders Needed", "All students are marked as paid for the current month.");
             }
-        });
 
-        // Initialize the application on page load
-        window.onload = initFirebase;
+            // Create a single message template for all pending students
+            let bulkMessage = `
+                <p class="mb-4">You have <b>${pendingStudents.length}</b> students pending payment for <b>${formatMonthKey(currentTrackingMonth)}</b>.</p>
+                <p class="mb-4 text-yellow-400 font-semibold">NOTE: Due to browser security, you must manually click each 'Send Now' link to open WhatsApp and send the individual message.</p>
+                <div class="max-h-60 overflow-y-auto p-2 bg-slate-700 rounded-lg space-y-2">
+            `;
+            
+            pendingStudents.forEach((student, index) => {
+                // Ensure the phone number starts with the country code (it should, but a quick check)
+                const phone = student.phoneNumber.startsWith('+') ? student.phoneNumber.substring(1) : student.phoneNumber;
+                const reminderLink = `whatsapp://send?phone=${phone}&text=${createWhatsAppMessage(student.name, currentTrackingMonth)}`;
+                
+                // Add instructions to manually click for each student
+                bulkMessage += `
+                    <div class="flex justify-between items-center text-sm">
+                        <span class="text-gray-300">${index + 1}. ${student.name}</span>
+                        <a href="${reminderLink}" target="_blank" class="px-3 py-1 bg-indigo-500 text-white font-bold rounded-md hover:bg-indigo-600 transition-all">
+                            Send Now
+                        </a>
+                    </div>
+                `;
+            });
+            
+            bulkMessage += `</div>`;
+
+            // Display the bulk message in the custom modal
+            const modal = document.getElementById('custom-modal');
+            document.getElementById('modal-title').textContent = `Send Bulk Reminders`;
+            document.getElementById('modal-content').innerHTML = bulkMessage; 
+
+            const closeBtn = document.getElementById('modal-close-btn');
+            closeBtn.textContent = 'Close List';
+            
+            modal.classList.remove('hidden');
+            modal.classList.add('flex');
+        }
+
+        // --- Initialization ---
+
+        window.onload = function() {
+            generateMonthOptions();
+            loadStudents();
+
+            // Event Listeners for Modals/Actions
+            openAddModalBtn.addEventListener('click', openAddStudentModal);
+            modalCancelBtn.addEventListener('click', closeAddStudentModal);
+            modalAddStudentForm.addEventListener('submit', handleAddStudent);
+            sendRemindersBtn.addEventListener('click', handleBulkReminders);
+            
+            // Event Listeners for new Data Management Features
+            exportCsvBtn.addEventListener('click', exportStudentsToCsv);
+            importCsvInput.addEventListener('change', importStudentsFromCsv);
+            clonePendingBtn.addEventListener('click', handleClonePending);
+        };
+
     </script>
 </body>
 </html>
