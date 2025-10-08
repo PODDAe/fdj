@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Nana Piyasa Fee Manager</title>
+    <title>Nana Piyasa Fee Manager (Offline)</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
         /* Custom CSS for a better aesthetic and loader */
@@ -68,22 +68,23 @@
         </div>
     </div>
     
-    <script type="module">
-        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
-        import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
-        import { getFirestore, collection, query, onSnapshot, doc, setDoc, addDoc, updateDoc, getDocs } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
-
+    <script>
         // --- GLOBAL CONSTANTS & CONFIGURATION ---
-        const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
-        const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : {};
-        const initialAuthToken = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : null;
-        const apiKey = "YOUR_GEMINI_API_KEY_HERE"; // **IMPORTANT: Replace with your actual Gemini API Key**
+        // **IMPORTANT: Replace with your actual Gemini API Key**
+        const apiKey = "YOUR_GEMINI_API_KEY_HERE"; 
         
-        const GEMINI_MODEL = "gemini-2.5-flash"; // Using a stable model
+        const GEMINI_MODEL = "gemini-2.5-flash"; 
         const FEE_AMOUNT_LKR = '1200';
         const INSTITUTE_NAME = 'Nena Piyasa Higher Education Institute';
         const DEFAULT_SENDER_PHONE = '0750882164';
         const CURRENT_YEAR = new Date().getFullYear();
+
+        // --- INDEXEDDB CONFIG ---
+        const DB_NAME = 'NenaPiyasaFeeDB';
+        const DB_VERSION = 1;
+        const STORE_STUDENTS = 'students';
+        const STORE_CONFIG = 'config';
+        let db = null; // Global IndexedDB instance
 
         // --- UTILITY FUNCTIONS ---
         /** Generates month names and keys (YYYY-MM) for the current year. */
@@ -126,7 +127,7 @@
             return `<svg class="${classes} ${isLoader ? 'animate-spin' : ''}" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${icons[name] || ''}</svg>`;
         };
 
-        // --- STATE MANAGEMENT (Replacing React Hooks) ---
+        // --- STATE MANAGEMENT ---
         let appState = {
             students: [],
             config: {
@@ -135,11 +136,8 @@
                 darkMode: false,
             },
             totalEarnings: 0,
-            isAuthReady: false,
-            db: null,
-            auth: null,
-            userId: null,
-            currentPage: 'Students', // 'Students', 'Add', 'Details', 'Payments', 'Settings'
+            isDataReady: false,
+            currentPage: 'Students', 
             selectedStudent: null,
             modal: { isVisible: false, title: '', content: '', onOk: null, isPrompt: false }
         };
@@ -155,7 +153,173 @@
             }
         }
 
-        // --- CUSTOM MODAL IMPLEMENTATION (To replace alert/confirm) ---
+        // --- INDEXEDDB IMPLEMENTATION (No external library) ---
+        function openDB() {
+            return new Promise((resolve, reject) => {
+                const request = indexedDB.open(DB_NAME, DB_VERSION);
+
+                request.onupgradeneeded = (event) => {
+                    const db = event.target.result;
+                    if (!db.objectStoreNames.contains(STORE_STUDENTS)) {
+                        db.createObjectStore(STORE_STUDENTS, { keyPath: 'id' });
+                    }
+                    if (!db.objectStoreNames.contains(STORE_CONFIG)) {
+                        db.createObjectStore(STORE_CONFIG, { keyPath: 'key' });
+                    }
+                };
+
+                request.onsuccess = (event) => {
+                    db = event.target.result;
+                    resolve(db);
+                };
+
+                request.onerror = (event) => {
+                    reject(new Error("IndexedDB error: " + event.target.errorCode));
+                };
+            });
+        }
+        
+        function dbOperation(storeName, mode, callback) {
+            return new Promise((resolve, reject) => {
+                if (!db) {
+                    return reject(new Error("Database not initialized."));
+                }
+                try {
+                    const transaction = db.transaction(storeName, mode);
+                    const store = transaction.objectStore(storeName);
+                    
+                    transaction.oncomplete = () => resolve();
+                    transaction.onerror = (event) => reject(event.target.error);
+
+                    callback(store, resolve, reject);
+                } catch (error) {
+                    reject(error);
+                }
+            });
+        }
+
+        async function initDB() {
+            try {
+                await openDB();
+                await loadAndCalculateData();
+                setState({ isDataReady: true });
+            } catch (error) {
+                console.error("Failed to initialize database:", error);
+                document.getElementById('main-content').innerHTML = `
+                    <div class="p-8 text-center text-red-600 dark:text-red-400">
+                        <p class="font-bold">Database Error</p>
+                        <p class="text-sm">The application cannot run without local storage.</p>
+                    </div>
+                `;
+            }
+        }
+
+        async function loadAndCalculateData() {
+            const students = await getAllStudents();
+            const config = await getConfig();
+            
+            // Calculate total earnings
+            let totalEarnings = 0;
+            const fee = parseFloat(FEE_AMOUNT_LKR.replace(/[^0-9.]/g, ''));
+            students.forEach(student => {
+                if (student.payments) {
+                    const paidMonths = Object.values(student.payments).filter(paid => paid).length;
+                    totalEarnings += paidMonths * fee;
+                }
+            });
+
+            // Apply dark mode globally from loaded config
+            const bodyEl = document.getElementById('body-tag');
+            if (config.darkMode) {
+                bodyEl.classList.add('dark');
+                bodyEl.classList.remove('bg-gray-100');
+            } else {
+                bodyEl.classList.remove('dark');
+                bodyEl.classList.add('bg-gray-100');
+            }
+            
+            setState({ students, config, totalEarnings }, false); // Do not render yet
+        }
+
+        // --- CRUD OPERATIONS ---
+        async function getAllStudents() {
+            return new Promise((resolve, reject) => {
+                dbOperation(STORE_STUDENTS, 'readonly', (store) => {
+                    const request = store.getAll();
+                    request.onsuccess = (event) => resolve(event.target.result);
+                    request.onerror = (event) => reject(event.target.error);
+                });
+            });
+        }
+        
+        async function saveStudent(studentData) {
+            const newStudent = {
+                id: crypto.randomUUID(), // Generate a unique ID
+                ...studentData,
+                payments: {},
+                createdAt: new Date().toISOString()
+            };
+            
+            await dbOperation(STORE_STUDENTS, 'readwrite', (store) => {
+                store.add(newStudent);
+            });
+            await loadAndCalculateData(); // Reload data after saving
+        }
+
+        async function updateStudentPayment(studentId, monthKey, isPaid) {
+            await dbOperation(STORE_STUDENTS, 'readwrite', (store, resolve, reject) => {
+                const request = store.get(studentId);
+                request.onsuccess = (event) => {
+                    const student = event.target.result;
+                    if (student) {
+                        // Toggle the payment status
+                        if (isPaid) {
+                            delete student.payments[monthKey]; // Set to unpaid (remove key)
+                        } else {
+                            student.payments[monthKey] = true; // Set to paid
+                        }
+                        
+                        const updateRequest = store.put(student);
+                        updateRequest.onsuccess = resolve;
+                        updateRequest.onerror = (e) => reject(e.target.error);
+                    } else {
+                        reject(new Error("Student not found."));
+                    }
+                };
+                request.onerror = (e) => reject(e.target.error);
+            });
+            await loadAndCalculateData(); // Reload data after update
+        }
+
+        async function getConfig() {
+            const defaultConfig = {
+                key: 'main',
+                messageTemplate: createDefaultMessage(),
+                senderPhone: DEFAULT_SENDER_PHONE,
+                darkMode: false,
+            };
+            
+            return new Promise((resolve, reject) => {
+                dbOperation(STORE_CONFIG, 'readonly', (store) => {
+                    const request = store.get('main');
+                    request.onsuccess = (event) => {
+                        const savedConfig = event.target.result;
+                        resolve(savedConfig ? { ...defaultConfig, ...savedConfig } : defaultConfig);
+                    };
+                    request.onerror = (event) => reject(event.target.error);
+                });
+            });
+        }
+
+        async function updateConfig(dataToUpdate) {
+            await dbOperation(STORE_CONFIG, 'readwrite', (store) => {
+                // Config always uses key 'main'
+                store.put({ key: 'main', ...appState.config, ...dataToUpdate });
+            });
+            await loadAndCalculateData(); // Reload data and apply theme
+        }
+        
+        // --- CUSTOM MODAL IMPLEMENTATION ---
         const modalEl = document.getElementById('custom-modal');
         const modalTitleEl = document.getElementById('modal-title');
         const modalContentEl = document.getElementById('modal-content');
@@ -187,134 +351,6 @@
                 modalCancelEl.classList.add('hidden');
             }
             setState({ modal: { isVisible: true, title, content, onOk, isPrompt } }, false);
-        }
-
-        // --- FIREBASE AND DATA LISTENERS ---
-        let db, auth;
-        let unsubscribeStudents = null;
-        let unsubscribeConfig = null;
-
-        function setupFirestoreListeners() {
-            const { userId, db } = appState;
-            if (!db || !userId) return;
-
-            const studentsCollectionRef = collection(db, `/artifacts/${appId}/users/${userId}/students`);
-
-            // 1. Students Listener
-            if (unsubscribeStudents) unsubscribeStudents();
-            unsubscribeStudents = onSnapshot(studentsCollectionRef, (snapshot) => {
-                const students = snapshot.docs.map(doc => ({
-                    id: doc.id,
-                    ...doc.data()
-                }));
-                // Calculate total earnings
-                let totalEarnings = 0;
-                students.forEach(student => {
-                    if (student.payments) {
-                        const paidMonths = Object.values(student.payments).filter(paid => paid).length;
-                        // Assuming FEE_AMOUNT_LKR is numeric for calculation, convert it if it's a string
-                        const fee = parseFloat(FEE_AMOUNT_LKR.replace(/[^0-9.]/g, ''));
-                        totalEarnings += paidMonths * fee;
-                    }
-                });
-
-                setState({ students, totalEarnings });
-            }, (error) => {
-                console.error("Error listening to students: ", error);
-            });
-
-            // 2. Config Listener
-            const configDocRef = doc(db, `/artifacts/${appId}/users/${userId}/config/main`);
-            if (unsubscribeConfig) unsubscribeConfig();
-            unsubscribeConfig = onSnapshot(configDocRef, (docSnap) => {
-                const defaultConfig = {
-                    messageTemplate: createDefaultMessage(),
-                    senderPhone: DEFAULT_SENDER_PHONE,
-                    darkMode: false,
-                };
-                const config = docSnap.exists() ? { ...defaultConfig, ...docSnap.data() } : defaultConfig;
-                setState({ config }, false); // Don't re-render entire app just for config change
-
-                // Apply dark mode globally
-                const bodyEl = document.getElementById('body-tag');
-                if (config.darkMode) {
-                    bodyEl.classList.add('dark');
-                    bodyEl.classList.remove('bg-gray-100');
-                } else {
-                    bodyEl.classList.remove('dark');
-                    bodyEl.classList.add('bg-gray-100');
-                }
-                renderApp(); // Now re-render after applying theme
-            }, (error) => {
-                console.error("Error listening to config: ", error);
-            });
-        }
-
-        // --- FIREBASE AUTHENTICATION ---
-        async function initFirebase() {
-            try {
-                const app = initializeApp(firebaseConfig);
-                db = getFirestore(app);
-                auth = getAuth(app);
-                setState({ db, auth }, false);
-
-                if (initialAuthToken) {
-                    await signInWithCustomToken(auth, initialAuthToken);
-                } else {
-                    await signInAnonymously(auth);
-                }
-
-                onAuthStateChanged(auth, (user) => {
-                    if (user) {
-                        setState({ userId: user.uid, isAuthReady: true });
-                        setupFirestoreListeners();
-                    } else {
-                        // Using a deterministic ID for anonymous users, though Firebase should manage it
-                        setState({ userId: 'anon-user', isAuthReady: true }); 
-                        setupFirestoreListeners();
-                    }
-                });
-            } catch (error) {
-                console.error("Firebase initialization failed:", error);
-                document.getElementById('main-content').innerHTML = `
-                    <div class="p-8 text-center text-red-600 dark:text-red-400">
-                        <p class="font-bold">Error Initializing Firebase</p>
-                        <p class="text-sm">Check console for details.</p>
-                    </div>
-                `;
-            }
-        }
-
-        // --- DATA MANIPULATION FUNCTIONS ---
-        async function saveStudent(studentData) {
-            const { db, userId } = appState;
-            const studentsCollectionRef = collection(db, `/artifacts/${appId}/users/${userId}/students`);
-            await addDoc(studentsCollectionRef, {
-                ...studentData,
-                payments: {},
-                createdAt: new Date().toISOString()
-            });
-        }
-
-        async function toggleMonthlyPayment(studentId, monthKey, isPaid) {
-            const { db, userId } = appState;
-            const studentDocRef = doc(db, `/artifacts/${appId}/users/${userId}/students`, studentId);
-            
-            // Payments are stored as a map: { "YYYY-MM": true/false }
-            const updateData = {};
-            // If currently paid (isPaid === true), we set it to false (delete payment).
-            // If currently unpaid (isPaid === false), we set it to true (add payment).
-            updateData[`payments.${monthKey}`] = !isPaid; 
-            
-            // To ensure we don't store "false" for unpaid months, we can delete the key if toggling to unpaid,
-            // but setting it to the boolean value is often cleaner for listeners. We'll use the boolean toggle.
-            await updateDoc(studentDocRef, updateData);
-        }
-
-        async function updateConfig(dataToUpdate) {
-            const { db, userId } = appState;
-            const configDocRef = doc(db, `/artifacts/${appId}/users/${userId}/config/main`);
-            await setDoc(configDocRef, dataToUpdate, { merge: true });
         }
 
         // --- GEMINI API CALL FUNCTION ---
@@ -403,6 +439,7 @@
         }
         
         function StudentListItem(student) {
+            // Check if the current month key exists in the payments object and is true
             const isPaid = student.payments?.[currentMonthKey] || false;
             const paymentStatusText = isPaid ? 'Paid' : 'Unpaid';
             const statusColor = isPaid ? 'text-green-500' : 'text-red-500';
@@ -594,7 +631,8 @@
 
                 try {
                     await saveStudent({ name, phone: cleanPhone });
-                    setState({ currentPage: 'Students' });
+                    // loadAndCalculateData will be called inside saveStudent, which updates state.
+                    setState({ currentPage: 'Students' }); 
                 } catch (err) {
                     errorEl.textContent = 'Failed to add student. Please try again.';
                     errorEl.classList.remove('hidden');
@@ -616,6 +654,11 @@
             // Get the latest student data from the main array
             const student = students.find(s => s.id === selectedStudent.id) || selectedStudent;
             
+            // Re-select the student in state with the latest data, in case they navigated back
+            if(student.id !== selectedStudent.id || student.payments !== selectedStudent.payments) {
+                setState({ selectedStudent: student }, false);
+            }
+
             const isCurrentMonthPaid = student.payments?.[currentMonthKey] || false;
             const reminderButtonText = isCurrentMonthPaid ? 'Payment Confirmed' : 'Send Payment Reminder (AI)';
 
@@ -656,9 +699,20 @@
                             <h3 class="text-lg font-semibold mb-4 text-gray-900 dark:text-gray-100">Payments (${CURRENT_YEAR})</h3>
                             <div id="payment-ledger" class="space-y-3">
                                 ${MONTHS_OF_YEAR.map(month => {
-                                    const isPaid = student.payments?.[month.key] || false;
+                                    // Check if month key is explicitly set to true
+                                    const isPaid = student.payments?.[month.key] || false; 
                                     const statusText = isPaid ? 'Paid' : 'Unpaid';
                                     
+                                    // Determine button background for paid/unpaid states
+                                    const btnBgClass = isPaid 
+                                        ? 'bg-green-100 hover:bg-green-200 dark:bg-green-900 dark:hover:bg-green-800' 
+                                        : 'bg-red-100 hover:bg-red-200 dark:bg-red-900 dark:hover:bg-red-800';
+                                        
+                                    // Determine icon color
+                                    const iconColorClass = isPaid 
+                                        ? 'text-green-600 dark:text-green-400' 
+                                        : 'text-red-600 dark:text-red-400';
+
                                     return `
                                         <div class="flex items-center justify-between p-3 rounded-lg border dark:border-gray-700 transition duration-100 hover:shadow-sm">
                                             <div class="text-gray-900 dark:text-gray-100">
@@ -672,10 +726,10 @@
                                                 <button
                                                     data-month-key="${month.key}"
                                                     data-is-paid="${isPaid}"
-                                                    class="toggle-payment-btn p-1 rounded-full ${isPaid ? 'bg-green-100 hover:bg-green-200 dark:bg-green-900 dark:hover:bg-green-800' : 'bg-red-100 hover:bg-red-200 dark:bg-red-900 dark:hover:bg-red-800'} transition"
+                                                    class="toggle-payment-btn p-1 rounded-full ${btnBgClass} transition"
                                                     title="${isPaid ? 'Mark as Unpaid' : 'Mark as Paid'}"
                                                 >
-                                                    ${Icon(isPaid ? 'Check' : 'CreditCard', 'w-5 h-5 ' + (isPaid ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'))}
+                                                    ${Icon(isPaid ? 'Check' : 'CreditCard', 'w-5 h-5 ' + iconColorClass)}
                                                 </button>
                                             </div>
                                         </div>
@@ -699,13 +753,16 @@
 
                     btn.disabled = true;
                     const oldContent = btn.innerHTML;
-                    btn.innerHTML = Icon('Loader', 'w-5 h-5 text-gray-600 dark:text-gray-300'); // Show loading spinner
-                    btn.classList.remove('bg-green-100', 'bg-red-100', 'dark:bg-green-900', 'dark:bg-red-900');
+                    // Note: This relies on the original button's HTML to correctly re-apply colors on error.
+                    
+                    // Change to loading spinner state
+                    btn.innerHTML = Icon('Loader', 'w-5 h-5 text-gray-600 dark:text-gray-300'); 
+                    btn.classList.remove('bg-green-100', 'bg-red-100', 'dark:bg-green-900', 'dark:bg-red-900', 'hover:bg-green-200', 'hover:bg-red-200', 'dark:hover:bg-green-800', 'dark:hover:bg-red-800');
                     btn.classList.add('bg-gray-300', 'dark:bg-gray-600');
 
                     try {
-                        await toggleMonthlyPayment(studentId, monthKey, isPaid);
-                        // The Firestore listener will automatically re-render the app on success.
+                        await updateStudentPayment(studentId, monthKey, isPaid);
+                        // loadAndCalculateData is called in updateStudentPayment, which updates state and re-renders
                     } catch (error) {
                         showModal({ title: 'Payment Error', content: 'Could not update payment status. Please try again.', onOk: () => {} });
                         console.error("Failed to toggle payment status:", error);
@@ -714,7 +771,12 @@
                         btn.innerHTML = oldContent;
                         btn.disabled = false;
                         btn.classList.remove('bg-gray-300', 'dark:bg-gray-600');
-                        btn.classList.add(isPaid ? 'bg-green-100 dark:bg-green-900' : 'bg-red-100 dark:bg-red-900');
+                        
+                        // Restore original color class
+                        const restoredColorClass = isPaid 
+                            ? 'bg-green-100 hover:bg-green-200 dark:bg-green-900 dark:hover:bg-green-800' 
+                            : 'bg-red-100 hover:bg-red-200 dark:bg-red-900 dark:hover:bg-red-800';
+                        btn.classList.add(...restoredColorClass.split(' '));
                     }
                 }
             });
@@ -724,7 +786,7 @@
                 const btnTextEl = document.getElementById('whatsapp-btn-text');
                 const originalText = btnTextEl.textContent;
 
-                if (isCurrentMonthPaid) return; // Should be disabled, but belt and suspenders
+                if (isCurrentMonthPaid) return; 
 
                 btn.disabled = true;
                 btnTextEl.innerHTML = `${Icon('Loader', 'w-5 h-5 mr-2 text-white')} Generating Message...`;
@@ -739,7 +801,7 @@
                     );
 
                     const encodedMessage = encodeURIComponent(personalizedMessage);
-                    // Standard WhatsApp link format
+                    // Standard WhatsApp link format: removes '+' from phone number for wa.me compatibility
                     const whatsappLink = `https://wa.me/${student.phone.replace('+', '')}?text=${encodedMessage}`; 
                     
                     window.open(whatsappLink, '_blank');
@@ -753,7 +815,7 @@
                 } catch (error) {
                     showModal({ 
                         title: 'AI Message Error', 
-                        content: `<p>Failed to generate the WhatsApp message. Check if the **Gemini API Key** is set correctly and visible to the client-side code.</p><p class="mt-2 text-xs">Error: ${error.message}</p>`, 
+                        content: `<p>Failed to generate the WhatsApp message. Check if the **Gemini API Key** is set correctly in the code.</p><p class="mt-2 text-xs">Error: ${error.message}</p>`, 
                         onOk: () => {} 
                     });
 
@@ -815,7 +877,7 @@
             // --- Event Listeners for Settings View ---
             document.getElementById('dark-mode-toggle').addEventListener('change', async (e) => {
                 const darkMode = e.target.checked;
-                await updateConfig({ darkMode }); // This triggers listener which updates state and rerenders
+                await updateConfig({ darkMode }); // This updates the config and triggers data reload/re-render
             });
 
             document.getElementById('save-config-btn').addEventListener('click', async (e) => {
@@ -921,8 +983,8 @@
 
         // --- MAIN RENDER FUNCTION ---
         function renderApp() {
-            if (!appState.isAuthReady) {
-                document.getElementById('main-content').innerHTML = `<div class="p-8 text-center text-gray-500 dark:text-gray-400">${Icon('Loader', 'w-8 h-8 mx-auto mb-4 text-blue-600 dark:text-blue-400')} Authenticating and Loading Data...</div>`;
+            if (!appState.isDataReady) {
+                document.getElementById('main-content').innerHTML = `<div class="p-8 text-center text-gray-500 dark:text-gray-400">${Icon('Loader', 'w-8 h-8 mx-auto mb-4 text-blue-600 dark:text-blue-400')} Loading Data...</div>`;
                 return;
             }
 
@@ -954,7 +1016,7 @@
         }
 
         // --- INITIALIZATION ---
-        initFirebase();
+        initDB(); // Start the IndexedDB initialization process
     </script>
 </body>
 </html>
