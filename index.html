@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Nena Piyasa Fee Tracker (Offline)</title>
+    <title>Nena Piyasa Fee Tracker (Multi-Month Offline)</title>
     <!-- Load Tailwind CSS for styling -->
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
@@ -29,6 +29,22 @@
             -ms-overflow-style: none;  /* IE and Edge */
             scrollbar-width: none;  /* Firefox */
         }
+
+        /* Custom Checkbox Styling for Month Modal */
+        .month-checkbox:checked {
+            background-color: #10b981; /* Emerald 500 */
+            border-color: #10b981;
+            background-image: url("data:image/svg+xml,%3csvg viewBox='0 0 16 16' fill='white' xmlns='http://www.w3.org/2000/svg'%3e%3cpath d='M12.207 4.793a1 1 0 010 1.414l-5 5a1 1 0 01-1.414 0l-2-2a1 1 0 011.414-1.414L6.5 9.086l4.293-4.293a1 1 0 011.414 0z'/%3e%3c/svg%3e");
+            background-size: 100% 100%;
+            background-position: center;
+            background-repeat: no-repeat;
+        }
+        .month-checkbox {
+            appearance: none;
+            transition: all 0.15s ease-in-out;
+            cursor: pointer;
+            border-radius: 4px;
+        }
     </style>
     <!-- Configure Inter font -->
     <script>
@@ -37,7 +53,10 @@
                 extend: {
                     fontFamily: {
                         sans: ['Inter', 'sans-serif'],
-                    }
+                    },
+                    colors: {
+                        'primary-emerald': '#10b981', // Emerald 500
+                    },
                 }
             }
         }
@@ -53,17 +72,26 @@
             <h1 class="text-2xl sm:text-3xl font-extrabold text-indigo-400 mb-2">
                 Nena Piyasa Fee Tracker
             </h1>
-            <p class="text-gray-400 mb-4 text-sm">Offline Payment Management (Data saved locally in your browser)</p>
+            <p class="text-gray-400 mb-4 text-sm">Multi-Month Payment Management (Offline Data)</p>
 
             <!-- Month Selector and Statistics -->
             <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 mb-4">
-                <div class="flex items-center gap-2 bg-slate-700/50 p-2 rounded-lg shadow-inner w-full sm:w-auto">
-                    <label for="month-selector" class="text-sm font-semibold text-gray-300 whitespace-nowrap">Current Month:</label>
-                    <select id="month-selector" class="bg-slate-900 text-gray-100 p-1 rounded-md border border-slate-600 text-sm focus:ring-indigo-500 focus:border-indigo-500"></select>
+                
+                <div class="flex items-center gap-2 w-full sm:w-auto">
+                    <button id="open-month-select-modal-btn" class="px-4 py-2 bg-slate-700 text-gray-300 font-semibold rounded-lg shadow-inner hover:bg-slate-600 transition duration-150 text-sm w-full">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 mr-1 inline" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M6 2a1 1 0 00-1 1v1H4a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V6a2 2 0 00-2-2h-1V3a1 1 0 10-2 0v1H7V3a1 1 0 00-1-1zm0 5a1 1 0 000 2h8a1 1 0 100-2H6z" clip-rule="evenodd" /></svg>
+                        Select/View Months
+                    </button>
                 </div>
+                
                 <div class="text-sm font-semibold text-gray-300">
                     Total Students: <span id="total-students-count" class="text-indigo-400 font-bold">0</span>
                 </div>
+            </div>
+
+            <!-- Display Active Selected Months -->
+            <div id="active-months-display" class="p-3 bg-slate-700/50 rounded-lg shadow-inner text-sm text-gray-400">
+                <span class="font-bold text-gray-300">Active Months:</span> <span id="selected-months-list">None selected.</span>
             </div>
 
             <hr class="my-4 border-slate-700">
@@ -98,7 +126,7 @@
 
                 <button id="clone-pending-btn" class="w-full sm:w-auto flex-1 px-4 py-2 bg-yellow-600 text-white font-bold rounded-lg shadow-md hover:bg-yellow-700 transition duration-150 text-xs sm:text-sm">
                     <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 mr-1 inline" viewBox="0 0 20 20" fill="currentColor"><path d="M7 3a1 1 0 000 2h6a1 1 0 100-2H7z" /><path fill-rule="evenodd" d="M3 8a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1z" clip-rule="evenodd" /><path d="M5 15a2 2 0 114 0V9a1 1 0 011-1h2a1 1 0 011 1v6a2 2 0 114 0V5a2 2 0 10-4 0v1h-2V5a2 2 0 10-4 0v1H5V5a2 2 0 10-4 0v11a1 1 0 001 1h14a1 1 0 001-1v-5a2 2 0 10-4 0v1h-2V5a2 2 0 10-4 0v1H5V5a2 2 0 10-4 0v11a1 1 0 001 1h14a1 1 0 001-1v-5a2 2 0 10-4 0v1h-2V5a2 2 0 10-4 0v1H5V5z" /></svg>
-                    Clone Pending to New Month
+                    Clone Pending to Next Month
                 </button>
             </div>
 
@@ -107,7 +135,7 @@
         <!-- Student List Section -->
         <section class="bg-slate-800 p-5 rounded-xl shadow-2xl">
             <h2 class="text-xl font-bold text-gray-200 mb-4 border-b border-slate-700 pb-2">
-                Payment Status
+                Payment Status (Showing latest selected month)
             </h2>
 
             <div class="overflow-x-auto custom-scroll">
@@ -156,7 +184,7 @@
                 </div>
 
                 <div class="flex justify-end space-x-3 pt-4">
-                    <button type="button" id="modal-cancel-btn" class="px-5 py-2 bg-slate-600 text-gray-100 font-semibold rounded-lg hover:bg-slate-500 transition duration-150 shadow-md">
+                    <button type="button" data-modal="add-student-modal" class="modal-cancel-btn px-5 py-2 bg-slate-600 text-gray-100 font-semibold rounded-lg hover:bg-slate-500 transition duration-150 shadow-md">
                         Cancel
                     </button>
                     <button type="submit" class="px-5 py-2 bg-indigo-600 text-white font-bold rounded-lg hover:bg-indigo-700 transition duration-150 shadow-lg">
@@ -166,13 +194,36 @@
             </form>
         </div>
     </div>
+    
+    <!-- 2. Month Selector Modal -->
+    <div id="month-select-modal" class="fixed inset-0 bg-slate-900 bg-opacity-75 hidden items-center justify-center p-4 z-50">
+        <div class="bg-slate-800 p-6 rounded-xl shadow-2xl max-w-sm w-full transform scale-100 border-t-4 border-indigo-500">
+            <h3 class="text-2xl font-extrabold text-gray-100 mb-5 border-b pb-3 border-slate-600">Select Active Months</h3>
+            <p class="text-gray-400 text-sm mb-4">Select the months you want to actively track and send reminders for.</p>
 
-    <!-- 2. Custom Alert Modal -->
+            <!-- List of Months -->
+            <div id="month-list-container" class="max-h-64 overflow-y-auto space-y-3 p-1 custom-scroll">
+                <!-- JavaScript will populate the months here -->
+            </div>
+
+            <div class="flex justify-end space-x-3 pt-6 border-t border-slate-700 mt-4">
+                <button type="button" data-modal="month-select-modal" class="modal-cancel-btn px-5 py-2 bg-slate-600 text-gray-100 font-semibold rounded-lg hover:bg-slate-500 transition duration-150 shadow-md">
+                    Cancel
+                </button>
+                <button type="button" id="save-months-btn" class="px-5 py-2 bg-primary-emerald text-white font-bold rounded-lg hover:bg-emerald-700 transition duration-150 shadow-lg">
+                    Save Selection
+                </button>
+            </div>
+        </div>
+    </div>
+
+
+    <!-- 3. Custom Alert/Confirmation Modal -->
     <div id="custom-modal" class="fixed inset-0 bg-slate-900 bg-opacity-75 hidden items-center justify-center p-4 z-50">
         <div class="bg-slate-800 p-6 rounded-xl shadow-2xl max-w-xs w-full border-t-4 border-indigo-500">
             <h3 id="modal-title" class="text-xl font-bold text-gray-200 mb-3">Message</h3>
             <p id="modal-content" class="text-gray-400 mb-6 text-sm"></p>
-            <div class="flex justify-end">
+            <div id="modal-actions" class="flex justify-end space-x-3">
                 <button id="modal-close-btn" class="px-4 py-2 bg-indigo-600 text-white font-semibold rounded-lg hover:bg-indigo-700 transition duration-150 shadow-md text-sm">OK</button>
             </div>
         </div>
@@ -187,8 +238,15 @@
         const TEACHER_PHONE_NUMBER_FULL = "94750882164"; 
         
         // Database key for localStorage
-        const STORAGE_KEY = 'nenaPiyasaFeeTrackerStudents';
+        const STORAGE_KEY = 'nenaPiyasaFeeTrackerStudentsMultiMonth';
+        const MONTHS_KEY = 'nenaPiyasaActiveMonths';
 
+        // Month Names Array
+        const MONTH_NAMES = [
+            "January", "February", "March", "April", "May", "June",
+            "July", "August", "September", "October", "November", "December"
+        ];
+        
         // UI Elements
         const studentsListBody = document.getElementById('students-list-body');
         const sendRemindersBtn = document.getElementById('send-reminders-btn');
@@ -196,14 +254,18 @@
         const totalStudentsCountEl = document.getElementById('total-students-count');
         const loadingRowEl = document.getElementById('loading-row');
         const noStudentsMessageEl = document.getElementById('no-students-message');
+        const activeMonthsListEl = document.getElementById('selected-months-list');
         
         const openAddModalBtn = document.getElementById('open-add-modal-btn');
         const addStudentModal = document.getElementById('add-student-modal');
-        const modalCancelBtn = document.getElementById('modal-cancel-btn');
+        const modalCancelBtns = document.querySelectorAll('.modal-cancel-btn');
         const modalAddStudentForm = document.getElementById('modal-add-student-form');
         
-        const monthSelector = document.getElementById('month-selector');
-        
+        const openMonthSelectModalBtn = document.getElementById('open-month-select-modal-btn');
+        const monthSelectModal = document.getElementById('month-select-modal');
+        const monthListContainer = document.getElementById('month-list-container');
+        const saveMonthsBtn = document.getElementById('save-months-btn');
+
         // Data Management Buttons
         const exportCsvBtn = document.getElementById('export-csv-btn');
         const importCsvInput = document.getElementById('import-csv-input');
@@ -211,7 +273,8 @@
 
         // Local State
         let students = [];
-        let currentTrackingMonth = ''; 
+        let activeSelectedMonths = []; // Stores YYYY-MM strings for currently tracked months
+        let latestTrackingMonth = ''; // Stores the latest month from activeSelectedMonths for table display
 
         // --- Utility Functions: Date/Month ---
 
@@ -222,41 +285,35 @@
             return `${year}-${month}`;
         }
         
-        /** Converts YYYY-MM to a readable month string (e.g., October 2025) */
-        function formatMonthKey(monthKey) {
+        /** Converts YYYY-MM to a readable month string (e.g., Oct 2025) */
+        function formatMonthKey(monthKey, short = false) {
             if (!monthKey) return 'N/A';
             const [year, month] = monthKey.split('-').map(Number);
-            // Month is 1-indexed for the string, but 0-indexed for the Date object
-            const date = new Date(year, month - 1);
-            return date.toLocaleDateString('en-US', { year: 'numeric', month: 'long' });
+            const monthName = MONTH_NAMES[month - 1];
+            return short ? `${monthName.substring(0, 3)} ${year}` : `${monthName} ${year}`;
         }
         
-        /** Generates array of last 6 months for selector */
-        function generateMonthOptions() {
+        /** Generates YYYY-MM keys for the current year (start today) and next year for the modal */
+        function getAllMonthOptions() {
             const today = new Date();
-            monthSelector.innerHTML = '';
+            const currentYear = today.getFullYear();
+            const nextYear = currentYear + 1;
+            const allMonths = [];
             
-            // Generate options for the last 6 months (current month and 5 previous)
-            for (let i = 0; i < 6; i++) {
-                const date = new Date(today.getFullYear(), today.getMonth() - i, 1);
-                const monthKey = getMonthKey(date);
-                const monthLabel = formatMonthKey(monthKey);
-                
-                const option = document.createElement('option');
-                option.value = monthKey;
-                option.textContent = i === 0 ? `${monthLabel} (Current)` : monthLabel;
-                monthSelector.appendChild(option);
+            // Generate current year months (up to the current month)
+            for (let i = 0; i <= today.getMonth(); i++) {
+                const date = new Date(currentYear, i, 1);
+                allMonths.push(getMonthKey(date));
+            }
+
+            // Generate next year months (all 12)
+            for (let i = 0; i < 12; i++) {
+                const date = new Date(nextYear, i, 1);
+                allMonths.push(getMonthKey(date));
             }
             
-            // Set current month and initial state
-            currentTrackingMonth = monthSelector.value;
-            monthSelector.addEventListener('change', handleMonthChange);
-        }
-
-        /** Handles month selector change */
-        function handleMonthChange(e) {
-            currentTrackingMonth = e.target.value;
-            renderStudents();
+            // Sort to ensure the list is chronological
+            return allMonths.sort((a, b) => a.localeCompare(b));
         }
         
         /** Calculates the key for the next month */
@@ -277,7 +334,8 @@
         function showModal(title, content) {
             const modal = document.getElementById('custom-modal');
             document.getElementById('modal-title').textContent = title;
-            document.getElementById('modal-content').textContent = content;
+            document.getElementById('modal-content').innerHTML = content;
+            document.getElementById('modal-actions').innerHTML = `<button id="modal-close-btn" class="px-4 py-2 bg-indigo-600 text-white font-semibold rounded-lg hover:bg-indigo-700 transition duration-150 shadow-md text-sm">OK</button>`;
             modal.classList.remove('hidden');
             modal.classList.add('flex');
             document.getElementById('modal-close-btn').onclick = () => {
@@ -286,45 +344,142 @@
             };
         }
 
-        function openAddStudentModal() {
-            addStudentModal.classList.remove('hidden');
-            addStudentModal.classList.add('flex');
-            modalAddStudentForm.reset();
-            document.getElementById('modal-student-name').focus();
+        function openModal(modalEl) {
+            modalEl.classList.remove('hidden');
+            modalEl.classList.add('flex');
         }
 
-        function closeAddStudentModal() {
-            addStudentModal.classList.add('hidden');
-            addStudentModal.classList.remove('flex');
+        function closeModal(modalEl) {
+            modalEl.classList.add('hidden');
+            modalEl.classList.remove('flex');
         }
 
         // --- Data Persistence (localStorage) ---
 
-        /** Loads students from localStorage */
-        function loadStudents() {
-            const storedData = localStorage.getItem(STORAGE_KEY);
+        /** Loads students and active months from localStorage */
+        function loadData() {
+            const storedStudents = localStorage.getItem(STORAGE_KEY);
+            const storedMonths = localStorage.getItem(MONTHS_KEY);
+            
             try {
-                students = storedData ? JSON.parse(storedData) : [];
-                // Sort students alphabetically by name for consistent display
+                students = storedStudents ? JSON.parse(storedStudents) : [];
                 students.sort((a, b) => a.name.localeCompare(b.name));
             } catch (e) {
-                console.error("Error parsing stored data:", e);
+                console.error("Error parsing stored student data:", e);
                 students = [];
             }
+            
+            try {
+                activeSelectedMonths = storedMonths ? JSON.parse(storedMonths) : [];
+                activeSelectedMonths.sort((a, b) => a.localeCompare(b));
+            } catch (e) {
+                console.error("Error parsing stored month data:", e);
+                activeSelectedMonths = [];
+            }
+
+            // Set the latest month for display purposes
+            if (activeSelectedMonths.length > 0) {
+                latestTrackingMonth = activeSelectedMonths[activeSelectedMonths.length - 1]; // Last one in the sorted array
+            } else {
+                latestTrackingMonth = getMonthKey(new Date());
+            }
+
             renderStudents();
+            updateMonthDisplay();
         }
 
         /** Saves students to localStorage */
         function saveStudents() {
             localStorage.setItem(STORAGE_KEY, JSON.stringify(students));
         }
+        
+        /** Saves active months to localStorage */
+        function saveActiveMonths() {
+            activeSelectedMonths.sort((a, b) => a.localeCompare(b));
+            localStorage.setItem(MONTHS_KEY, JSON.stringify(activeSelectedMonths));
+            
+            if (activeSelectedMonths.length > 0) {
+                latestTrackingMonth = activeSelectedMonths[activeSelectedMonths.length - 1];
+            } else {
+                latestTrackingMonth = getMonthKey(new Date());
+            }
+            
+            updateMonthDisplay();
+        }
+
+        // --- Month Selector Logic ---
+        
+        function openMonthSelectorModal() {
+            monthListContainer.innerHTML = '';
+            const allMonthKeys = getAllMonthOptions();
+            
+            allMonthKeys.forEach(monthKey => {
+                const monthLabel = formatMonthKey(monthKey, false);
+                const isChecked = activeSelectedMonths.includes(monthKey);
+
+                const label = document.createElement('label');
+                label.className = 'flex items-center justify-between p-3 bg-slate-700 hover:bg-slate-600 rounded-lg cursor-pointer transition duration-150 border border-slate-600 shadow-sm';
+                label.setAttribute('for', `month-check-${monthKey}`);
+
+                const span = document.createElement('span');
+                span.textContent = monthLabel;
+                span.className = 'text-gray-200 font-medium text-lg';
+
+                const checkbox = document.createElement('input');
+                checkbox.type = 'checkbox';
+                checkbox.id = `month-check-${monthKey}`;
+                checkbox.name = 'activeMonths';
+                checkbox.value = monthKey;
+                checkbox.checked = isChecked;
+                
+                // Use custom CSS for styling
+                checkbox.className = 'month-checkbox h-5 w-5 bg-slate-600 border-slate-500 rounded focus:ring-primary-emerald focus:ring-2';
+                checkbox.style.backgroundColor = isChecked ? '#10b981' : '#475569'; // slate-600
+
+                checkbox.addEventListener('change', (e) => {
+                    e.target.style.backgroundColor = e.target.checked ? '#10b981' : '#475569';
+                });
+
+                label.appendChild(span);
+                label.appendChild(checkbox);
+                monthListContainer.appendChild(label);
+            });
+            
+            openModal(monthSelectModal);
+        }
+
+        function handleMonthSelection() {
+            const checkboxes = document.querySelectorAll('#month-list-container input[name="activeMonths"]:checked');
+            activeSelectedMonths = Array.from(checkboxes).map(cb => cb.value);
+            
+            saveActiveMonths();
+            renderStudents();
+            closeModal(monthSelectModal);
+            showModal("Months Saved", `You are now tracking ${activeSelectedMonths.length} month(s).`);
+        }
+        
+        function updateMonthDisplay() {
+            if (activeSelectedMonths.length === 0) {
+                activeMonthsListEl.textContent = 'None selected. Please select months to track.';
+            } else {
+                const formattedMonths = activeSelectedMonths.map(key => formatMonthKey(key, true)).join(', ');
+                activeMonthsListEl.textContent = formattedMonths;
+            }
+        }
+
 
         // --- Core Application Logic ---
 
         /** Generates the WhatsApp message content */
-        function createWhatsAppMessage(studentName, monthKey) {
-            const monthLabel = formatMonthKey(monthKey);
-            let message = `Hello ${studentName}, \n\nThis is to notify you that your payment of ${FEE_AMOUNT} for ${monthLabel} is pending. Please make it clear as soon as possible. \n\nRegards, \n${INSTITUTE_NAME} (Contact: +${TEACHER_PHONE_NUMBER_FULL})`;
+        function createWhatsAppMessage(studentName, pendingMonths) {
+            let message = `Hello ${studentName}, \n\nThis is a friendly reminder regarding your pending fee payment(s) of ${FEE_AMOUNT} for the following month(s):`;
+            
+            pendingMonths.forEach(monthKey => {
+                message += `\n- ${formatMonthKey(monthKey, false)}`;
+            });
+
+            message += `\n\nPlease make them clear as soon as possible. \n\nRegards, \n${INSTITUTE_NAME} (Contact: +${TEACHER_PHONE_NUMBER_FULL})`;
+            
             return encodeURIComponent(message);
         }
 
@@ -350,37 +505,46 @@
                 name: name,
                 className: className,
                 phoneNumber: phone,
-                // Initialize payments for the current month as pending
-                payments: {
-                    [currentTrackingMonth]: { paid: false, date: new Date().getTime() }
-                },
+                payments: {}, // Start with no payments
                 createdAt: new Date().getTime()
             };
+            
+            // Auto-initialize payment as pending for the latest active month, if one exists
+            if (latestTrackingMonth) {
+                 newStudent.payments[latestTrackingMonth] = { paid: false, date: new Date().getTime() };
+            }
 
             students.push(newStudent);
             saveStudents();
             renderStudents();
-            closeAddStudentModal();
+            closeModal(addStudentModal);
+            showModal("Student Added", `${name} has been added. Payment status for ${formatMonthKey(latestTrackingMonth)} is PENDING.`);
         }
 
         /** Toggles payment status for a specific student and month */
-        function togglePaymentStatus(studentId) {
+        function togglePaymentStatus(studentId, monthKey) {
             const student = students.find(s => s.id === studentId);
             if (!student) return;
-
-            // Ensure the payment object exists for the current month
-            if (!student.payments[currentTrackingMonth]) {
-                student.payments[currentTrackingMonth] = { paid: false };
+            
+            if (!monthKey) {
+                return showModal("Action Error", "No month is currently selected to track status.");
             }
 
-            const currentStatus = student.payments[currentTrackingMonth].paid;
+            // Ensure the payment object exists for the target month
+            if (!student.payments[monthKey]) {
+                student.payments[monthKey] = { paid: false };
+            }
+
+            const currentStatus = student.payments[monthKey].paid;
             
-            student.payments[currentTrackingMonth].paid = !currentStatus;
+            student.payments[monthKey].paid = !currentStatus;
             // Only update the date if marking as paid
             if (!currentStatus) {
-                student.payments[currentTrackingMonth].date = new Date().getTime();
+                student.payments[monthKey].date = new Date().getTime();
+                showModal("Payment Recorded", `${student.name} is now marked PAID for ${formatMonthKey(monthKey)}.`);
             } else {
-                delete student.payments[currentTrackingMonth].date; // Remove date when marking unpaid
+                delete student.payments[monthKey].date; // Remove date when marking unpaid
+                showModal("Payment Reset", `${student.name} is now marked PENDING for ${formatMonthKey(monthKey)}.`);
             }
 
             saveStudents();
@@ -389,7 +553,6 @@
         
         /** Deletes a student */
         function handleDeleteStudent(studentId, studentName) {
-            // Use window.confirm for simplicity, although custom modal is preferred for non-blocking UI
             if (window.confirm(`Are you sure you want to permanently delete student: ${studentName}? This action cannot be undone.`)) {
                 students = students.filter(s => s.id !== studentId);
                 saveStudents();
@@ -398,25 +561,30 @@
             }
         }
         
-        /** Clones pending students to the next month */
+        /** Clones pending students from a target month to the next month */
         function handleClonePending() {
-            const currentMonthLabel = formatMonthKey(currentTrackingMonth);
-            const nextMonthKey = getNextMonthKey(currentTrackingMonth);
+            if (activeSelectedMonths.length === 0) {
+                 return showModal("Action Required", "Please select at least one Active Month before attempting to clone.");
+            }
+            
+            const targetMonth = latestTrackingMonth; // We clone FROM the latest viewed month
+            const nextMonthKey = getNextMonthKey(targetMonth);
+            const targetMonthLabel = formatMonthKey(targetMonth);
             const nextMonthLabel = formatMonthKey(nextMonthKey);
             
-            if (!window.confirm(`Are you sure you want to clone ALL PENDING students from ${currentMonthLabel} to the next tracking month (${nextMonthLabel})? This will set their payment status for ${nextMonthLabel} to PENDING.`)) {
+            if (!window.confirm(`Are you sure you want to clone ALL PENDING students from ${targetMonthLabel} to the next month (${nextMonthLabel})?`)) {
                 return;
             }
             
             let clonedCount = 0;
             
             students.forEach(student => {
-                const isPending = !student.payments[currentTrackingMonth] || student.payments[currentTrackingMonth].paid === false;
+                const isPendingInTargetMonth = !student.payments[targetMonth] || student.payments[targetMonth].paid === false;
                 
-                if (isPending) {
+                if (isPendingInTargetMonth) {
                     // Check if the next month status is already set. If so, don't overwrite.
                     if (!student.payments[nextMonthKey] || student.payments[nextMonthKey].paid !== true) {
-                        student.payments[nextMonthKey] = { paid: false, date: new Date().getTime() }; // Use current time as creation time for the new record
+                        student.payments[nextMonthKey] = { paid: false, date: new Date().getTime() }; 
                         clonedCount++;
                     }
                 }
@@ -424,60 +592,51 @@
             
             if (clonedCount > 0) {
                 saveStudents();
-                // After cloning, update the month selector to show the next month
-                generateMonthOptions(); 
-                // We need to re-select the month to make sure the view is updated
-                const nextMonthOption = monthSelector.querySelector(`option[value="${nextMonthKey}"]`);
-                if(nextMonthOption) {
-                    monthSelector.value = nextMonthKey;
-                    currentTrackingMonth = nextMonthKey;
+                // Add the new month to the active list if it's not already there
+                if (!activeSelectedMonths.includes(nextMonthKey)) {
+                    activeSelectedMonths.push(nextMonthKey);
+                    saveActiveMonths(); // This updates latestTrackingMonth and display
                 }
-                renderStudents();
 
-                showModal("Cloning Complete", `Successfully set ${clonedCount} pending students' status to PENDING for ${nextMonthLabel}. The view has been switched to ${nextMonthLabel}.`);
+                renderStudents();
+                showModal("Cloning Complete", `Successfully set ${clonedCount} pending students' status to PENDING for ${nextMonthLabel}.`);
             } else {
-                showModal("Cloning Not Necessary", `No pending students found for ${currentMonthLabel} or their next month status was already set.`);
+                showModal("Cloning Not Necessary", `No pending students found for ${targetMonthLabel}.`);
             }
         }
         
-        // --- CSV Import/Export Logic ---
-        
+        // --- CSV Import/Export Logic (Unchanged from original logic) ---
+
         /** Exports all student data to a CSV file */
         function exportStudentsToCsv() {
             if (students.length === 0) {
                 return showModal("Export Error", "No student data to export.");
             }
 
-            // Define the headers and mapping keys
             const headers = ["ID", "Name", "Class", "Phone Number", "Created At"];
             const studentKeys = ["id", "name", "className", "phoneNumber", "createdAt"];
             
-            // Collect all unique payment month keys
             const allMonthKeys = new Set();
             students.forEach(student => {
                 Object.keys(student.payments).forEach(monthKey => allMonthKeys.add(monthKey));
             });
-            const sortedMonthKeys = Array.from(allMonthKeys).sort((a, b) => b.localeCompare(a)); // Sort descending by year-month
+            const sortedMonthKeys = Array.from(allMonthKeys).sort((a, b) => b.localeCompare(a)); 
             
-            // Add month headers (e.g., "2023-10 Status", "2023-10 Date")
             sortedMonthKeys.forEach(monthKey => {
                 headers.push(`${monthKey} Status`);
                 headers.push(`${monthKey} Date`);
             });
 
-            // Escape function for CSV values
             const escapeCsv = (value) => {
                 if (value === null || value === undefined) return "";
                 let str = String(value);
-                // If the string contains comma, double quote, or newline, wrap it in double quotes and escape internal double quotes
                 if (str.includes(',') || str.includes('"') || str.includes('\n')) {
                     return `"${str.replace(/"/g, '""')}"`;
                 }
                 return str;
             };
 
-            // Convert data to CSV rows
-            const csvRows = [headers.map(escapeCsv).join(',')]; // Header row
+            const csvRows = [headers.map(escapeCsv).join(',')]; 
 
             students.forEach(student => {
                 const row = studentKeys.map(key => {
@@ -486,7 +645,6 @@
                     return escapeCsv(value);
                 });
 
-                // Add payment data for each month
                 sortedMonthKeys.forEach(monthKey => {
                     const payment = student.payments[monthKey];
                     const status = payment && payment.paid ? 'PAID' : 'PENDING';
@@ -519,7 +677,7 @@
             if (!file) return;
 
             if (!window.confirm("Importing CSV data will OVERWRITE all existing student data in your browser. Are you sure you want to proceed?")) {
-                importCsvInput.value = ''; // Reset file input
+                importCsvInput.value = ''; 
                 return;
             }
 
@@ -531,7 +689,7 @@
                     if (newStudents.length > 0) {
                         students = newStudents;
                         saveStudents();
-                        renderStudents();
+                        loadData(); // Re-load to update active months based on imported data
                         showModal("Import Successful", `Successfully imported ${newStudents.length} students. All previous data was overwritten.`);
                     } else {
                         showModal("Import Failed", "The CSV file was empty or could not be parsed correctly. Please check the format.");
@@ -540,7 +698,7 @@
                     console.error("CSV Import Error:", error);
                     showModal("Import Error", `Failed to process CSV file. Make sure it matches the exported format. Error: ${error.message}`);
                 } finally {
-                    importCsvInput.value = ''; // Reset file input
+                    importCsvInput.value = ''; 
                 }
             };
             reader.readAsText(file);
@@ -548,11 +706,9 @@
 
         /** Parses the CSV text back into the student data structure */
         function parseCsv(csvText) {
-            // Very simple CSV parser, assuming comma delimiter and standard escaping
             const lines = csvText.trim().split('\n');
             if (lines.length < 2) return [];
 
-            // Helper to split a CSV line while respecting quoted commas
             const splitCsvLine = (line) => {
                 const result = [];
                 let current = '';
@@ -560,10 +716,9 @@
                 for (let i = 0; i < line.length; i++) {
                     const char = line[i];
                     if (char === '"') {
-                        // Handle escaped quote ("") or start/end quote
                         if (i + 1 < line.length && line[i + 1] === '"' && inQuote) {
                             current += '"';
-                            i++; // Skip next quote
+                            i++; 
                         } else {
                             inQuote = !inQuote;
                         }
@@ -575,7 +730,7 @@
                     }
                 }
                 result.push(current.trim());
-                return result.map(v => v.replace(/^"|"$/g, '')); // Remove outer quotes if present
+                return result.map(v => v.replace(/^"|"$/g, '')); 
             };
 
             const headers = splitCsvLine(lines[0]);
@@ -583,7 +738,6 @@
             const studentBaseKeys = ["ID", "Name", "Class", "Phone Number", "Created At"];
             const monthHeaderIndices = {};
             
-            // Map payment headers to their indices
             headers.forEach((header, index) => {
                 if (header.endsWith(' Status')) {
                     const monthKey = header.replace(' Status', '');
@@ -598,7 +752,7 @@
 
             return dataLines.map(line => {
                 const values = splitCsvLine(line);
-                if (values.length < studentBaseKeys.length) return null; // Skip invalid lines
+                if (values.length < studentBaseKeys.length) return null; 
 
                 const getVal = (key) => {
                     const index = headers.indexOf(key);
@@ -614,7 +768,6 @@
                     payments: {}
                 };
 
-                // Populate payment history
                 Object.keys(monthHeaderIndices).forEach(monthKey => {
                     const indices = monthHeaderIndices[monthKey];
                     const status = values[indices.statusIndex];
@@ -634,7 +787,7 @@
                 });
 
                 return student;
-            }).filter(s => s !== null && s.name && s.phoneNumber); // Ensure name and phone are present
+            }).filter(s => s !== null && s.name && s.phoneNumber); 
         }
 
         /** Renders the student list table */
@@ -651,22 +804,29 @@
             }
 
             noStudentsMessageEl.classList.add('hidden');
-            let pendingCount = 0;
+            let totalStudentsPending = 0;
             
-            // Note: Students array is pre-sorted in loadStudents()
-
             students.forEach(student => {
-                // Get payment status for the currently selected month
-                const payment = student.payments[currentTrackingMonth];
-                const isPaid = payment ? payment.paid : false;
-
-                if (!isPaid) {
-                    pendingCount++;
+                // 1. Determine status for the latest selected month (for display and quick action)
+                const isPaidLatest = student.payments[latestTrackingMonth] ? student.payments[latestTrackingMonth].paid : false;
+                
+                // 2. Check for overall pending status across ALL active months (for bulk reminders)
+                const pendingMonths = activeSelectedMonths.filter(monthKey => {
+                    const payment = student.payments[monthKey];
+                    return !payment || payment.paid === false;
+                });
+                
+                const isPendingOverall = pendingMonths.length > 0;
+                if (isPendingOverall) {
+                    totalStudentsPending++;
                 }
 
-                const statusBg = isPaid ? 'bg-emerald-600' : 'bg-yellow-500';
-                const statusText = isPaid ? 'text-white' : 'text-slate-900';
-                const statusLabel = isPaid ? 'PAID' : 'PENDING';
+                const statusBg = isPaidLatest ? 'bg-emerald-600' : 'bg-yellow-500';
+                const statusText = isPaidLatest ? 'text-white' : 'text-slate-900';
+                const statusLabel = isPaidLatest ? `PAID (${formatMonthKey(latestTrackingMonth)})` : `PENDING (${formatMonthKey(latestTrackingMonth)})`;
+
+                // Determine the action button label based on the latest month's status
+                const actionButtonText = isPaidLatest ? 'Mark UNPAID' : 'Mark PAID';
 
                 const row = document.createElement('tr');
                 row.className = 'hover:bg-slate-700/70 transition duration-150 border-b border-slate-700';
@@ -682,19 +842,20 @@
                         <span class="px-3 py-1 rounded-full text-xs font-semibold ${statusBg} ${statusText}">
                             ${statusLabel}
                         </span>
+                        ${pendingMonths.length > 0 ? `<div class="text-xs text-red-400 mt-1">${pendingMonths.length} month(s) total pending</div>` : ''}
                     </td>
                     
                     <td class="px-3 py-3 whitespace-nowrap text-right">
                         <div class="flex flex-wrap gap-2 justify-center">
                             <button data-id="${student.id}" data-action="toggle" class="p-2 text-sm font-semibold rounded-lg shadow-sm transition-all duration-150 
-                                ${isPaid ? 'bg-red-500 hover:bg-red-600' : 'bg-green-500 hover:bg-green-600'} text-white">
-                                ${isPaid ? 'Mark UNPAID' : 'Mark PAID'}
+                                ${isPaidLatest ? 'bg-red-500 hover:bg-red-600' : 'bg-green-500 hover:bg-green-600'} text-white">
+                                ${actionButtonText}
                             </button>
-                            <a href="whatsapp://send?phone=${student.phoneNumber}&text=${createWhatsAppMessage(student.name, currentTrackingMonth)}"
-                                target="_blank"
-                                class="p-2 text-sm font-semibold rounded-lg bg-indigo-500 text-white shadow-sm hover:bg-indigo-600 transition-all duration-150 flex items-center justify-center">
-                                Reminder
-                            </a>
+                            ${isPendingOverall ? `
+                            <button data-id="${student.id}" data-action="send-single-reminder" class="p-2 text-sm font-semibold rounded-lg bg-indigo-500 text-white shadow-sm hover:bg-indigo-600 transition-all duration-150 flex items-center justify-center">
+                                Send Reminder
+                            </button>` : `<span class="p-2 text-sm text-gray-500">Fully Paid</span>`}
+                            
                             <button data-id="${student.id}" data-name="${student.name}" data-action="delete" class="p-2 text-sm font-semibold rounded-lg bg-slate-600 text-white shadow-sm hover:bg-slate-500 transition-all duration-150">
                                 Delete
                             </button>
@@ -706,50 +867,112 @@
             
             // Update summary statistics
             totalStudentsCountEl.textContent = students.length;
-            pendingCountEl.textContent = pendingCount;
-            sendRemindersBtn.disabled = pendingCount === 0;
+            pendingCountEl.textContent = totalStudentsPending;
+            sendRemindersBtn.disabled = totalStudentsPending === 0;
 
             // Attach event listeners to the new buttons
             studentsListBody.querySelectorAll('button').forEach(button => {
                 const studentId = button.getAttribute('data-id');
                 const action = button.getAttribute('data-action');
                 const name = button.getAttribute('data-name');
-
+                
                 if (action === 'toggle') {
-                    button.addEventListener('click', () => togglePaymentStatus(studentId));
+                    // Action always uses the latest month for quick toggling
+                    button.addEventListener('click', () => togglePaymentStatus(studentId, latestTrackingMonth));
                 } else if (action === 'delete') {
                     button.addEventListener('click', () => handleDeleteStudent(studentId, name));
+                } else if (action === 'send-single-reminder') {
+                    button.addEventListener('click', () => handleSingleReminder(studentId));
                 }
             });
         }
+        
+        /** Handles single reminder button click */
+        function handleSingleReminder(studentId) {
+            const student = students.find(s => s.id === studentId);
+            if (!student) return;
+
+            const pendingMonths = activeSelectedMonths.filter(monthKey => {
+                const payment = student.payments[monthKey];
+                return !payment || payment.paid === false;
+            });
+            
+            if (pendingMonths.length === 0) {
+                return showModal("No Reminders Needed", `${student.name} is fully paid for all active months.`);
+            }
+            
+            const messageUrl = createWhatsAppMessage(student.name, pendingMonths);
+            const reminderLink = `whatsapp://send?phone=${student.phoneNumber}&text=${messageUrl}`;
+            
+            let content = `<p class="mb-4">You are about to send a combined reminder to <b>${student.name}</b> for the following pending month(s):</p>`;
+            content += `<ul class="list-disc list-inside mb-4 text-left">`;
+            pendingMonths.forEach(monthKey => {
+                content += `<li>${formatMonthKey(monthKey, false)}</li>`;
+            });
+            content += `</ul>`;
+            content += `<p class="text-yellow-400 font-semibold text-sm">You will need to manually click the link to open WhatsApp and send the message.</p>`;
+
+
+            // Set up confirmation in the modal
+            const modal = document.getElementById('custom-modal');
+            document.getElementById('modal-title').textContent = `Confirm Reminder for ${student.name}`;
+            document.getElementById('modal-content').innerHTML = content;
+            document.getElementById('modal-actions').innerHTML = `
+                <button id="modal-cancel-close-btn" class="px-4 py-2 bg-slate-600 text-gray-100 font-semibold rounded-lg hover:bg-slate-500 transition duration-150 shadow-md text-sm">Cancel</button>
+                <a id="modal-send-link" href="${reminderLink}" target="_blank" class="px-4 py-2 bg-indigo-600 text-white font-bold rounded-lg hover:bg-indigo-700 transition duration-150 shadow-lg text-sm">Send via WhatsApp</a>
+            `;
+            
+            modal.classList.remove('hidden');
+            modal.classList.add('flex');
+            
+            document.getElementById('modal-cancel-close-btn').onclick = () => {
+                closeModal(modal);
+            };
+            // Close modal after clicking the link (the link opens a new tab/app)
+            document.getElementById('modal-send-link').onclick = () => {
+                setTimeout(() => closeModal(modal), 100);
+            };
+        }
+
 
         /** Handles the bulk send reminders button click */
         function handleBulkReminders() {
-            const pendingStudents = students.filter(student => {
-                const payment = student.payments[currentTrackingMonth];
-                return !payment || payment.paid === false;
-            }).filter(student => student.phoneNumber); // Ensure phone number exists
+            if (activeSelectedMonths.length === 0) {
+                return showModal("Action Required", "Please select months to track before sending bulk reminders.");
+            }
+            
+            const studentsToRemind = students.map(student => {
+                const pendingMonths = activeSelectedMonths.filter(monthKey => {
+                    const payment = student.payments[monthKey];
+                    return !payment || payment.paid === false;
+                });
+                
+                return {
+                    id: student.id,
+                    name: student.name,
+                    phone: student.phoneNumber,
+                    pendingMonths: pendingMonths
+                };
+            }).filter(s => s.pendingMonths.length > 0);
 
-            if (pendingStudents.length === 0) {
-                return showModal("No Reminders Needed", "All students are marked as paid for the current month.");
+
+            if (studentsToRemind.length === 0) {
+                return showModal("No Reminders Needed", "All students are marked as paid for the active months.");
             }
 
-            // Create a single message template for all pending students
             let bulkMessage = `
-                <p class="mb-4">You have <b>${pendingStudents.length}</b> students pending payment for <b>${formatMonthKey(currentTrackingMonth)}</b>.</p>
-                <p class="mb-4 text-yellow-400 font-semibold">NOTE: Due to browser security, you must manually click each 'Send Now' link to open WhatsApp and send the individual message.</p>
+                <p class="mb-4">You have <b>${studentsToRemind.length}</b> students pending payment across your active months. Click each link below:</p>
+                <p class="mb-4 text-yellow-400 font-semibold text-xs">NOTE: You must manually click each 'Send Now' link to open WhatsApp and send the individual message.</p>
                 <div class="max-h-60 overflow-y-auto p-2 bg-slate-700 rounded-lg space-y-2">
             `;
             
-            pendingStudents.forEach((student, index) => {
-                // Ensure the phone number starts with the country code (it should, but a quick check)
-                const phone = student.phoneNumber.startsWith('+') ? student.phoneNumber.substring(1) : student.phoneNumber;
-                const reminderLink = `whatsapp://send?phone=${phone}&text=${createWhatsAppMessage(student.name, currentTrackingMonth)}`;
+            studentsToRemind.forEach((student, index) => {
+                const messageUrl = createWhatsAppMessage(student.name, student.pendingMonths);
+                const reminderLink = `whatsapp://send?phone=${student.phone}&text=${messageUrl}`;
                 
-                // Add instructions to manually click for each student
                 bulkMessage += `
-                    <div class="flex justify-between items-center text-sm">
-                        <span class="text-gray-300">${index + 1}. ${student.name}</span>
+                    <div class="flex justify-between items-center text-sm border-b border-slate-600 pb-1">
+                        <span class="text-gray-300">${index + 1}. ${student.name} (${student.pendingMonths.length} Mth)</span>
                         <a href="${reminderLink}" target="_blank" class="px-3 py-1 bg-indigo-500 text-white font-bold rounded-md hover:bg-indigo-600 transition-all">
                             Send Now
                         </a>
@@ -771,16 +994,27 @@
             modal.classList.add('flex');
         }
 
+
         // --- Initialization ---
 
         window.onload = function() {
-            generateMonthOptions();
-            loadStudents();
+            loadData();
+
+            // Setup general modal closing for all cancel buttons
+            modalCancelBtns.forEach(btn => {
+                btn.addEventListener('click', (e) => {
+                    const modalId = e.target.getAttribute('data-modal');
+                    closeModal(document.getElementById(modalId));
+                });
+            });
 
             // Event Listeners for Modals/Actions
-            openAddModalBtn.addEventListener('click', openAddStudentModal);
-            modalCancelBtn.addEventListener('click', closeAddStudentModal);
+            openAddModalBtn.addEventListener('click', () => openModal(addStudentModal));
             modalAddStudentForm.addEventListener('submit', handleAddStudent);
+            
+            openMonthSelectModalBtn.addEventListener('click', openMonthSelectorModal);
+            saveMonthsBtn.addEventListener('click', handleMonthSelection);
+
             sendRemindersBtn.addEventListener('click', handleBulkReminders);
             
             // Event Listeners for new Data Management Features
